@@ -1,0 +1,169 @@
+#!/usr/bin/python
+
+##################
+# Spooler.py
+#
+# Copyright David Baddeley, 2009
+# d.baddeley@auckland.ac.nz
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+##################
+
+import os
+#import logparser
+import datetime
+
+from PYME.Acquire import MetaDataHandler
+#from PYME import cSMI
+
+try:
+    from PYME.Acquire import sampleInformation
+except:
+    sampleInformation= None
+
+import time
+
+global timeFcn
+timeFcn = time.time
+
+from PYME.Acquire import eventLog
+from PYME.Acquire import protocol as p
+
+class EventLogger:
+    '''Event logging backend base class'''
+    def __init__(self, scope, hdf5File):
+        self.scope = scope      
+
+    def logEvent(self, eventName, eventDescr = ''):
+        '''Log an event. Should be overriden in derived classes.
+        
+        .. note:: In addition to the name and description, timing information is recorded
+        for each event.
+          
+        Parameters
+        ----------
+        eventName : string
+            short event name - < 32 chars and should be shared by events of the
+            same type.
+        eventDescr : string
+            description of the event - additional, even specific information
+            packaged as a string (<255 chars). This is commonly used to store 
+            parameters - e.g. z positions, and should be both human readable and 
+            easily parsed.
+        
+        '''
+        pass
+
+
+class Spooler:
+   '''Spooler base class'''
+   # sp.Spooler.__init__(self, scope, filename, acquisator, protocol, parent)
+   def __init__(self, scope, filename, acquisator, protocol = p.NullProtocol, parent=None):
+       global timeFcn
+       self.scope = scope
+       self.filename=filename # xxx.h5
+       self.acq = acquisator #pa
+       self.parent = parent
+       self.protocol = protocol
+
+       self.doStartLog()
+
+       eventLog.WantEventNotification.append(self.evtLogger)
+
+       self.imNum = 0
+
+       #if we've got a fake camera - the cycle time will be wrong - fake our time sig to make up for this
+       if scope.cam.__class__.__name__ == 'FakeCamera':
+           timeFcn = self.fakeTime
+
+       self.protocol.Init(self)
+       
+       self.acq.WantFrameNotification.append(self.Tick)
+       self.spoolOn = True
+
+       
+       
+   def StopSpool(self):
+       try:
+           self.acq.WantFrameNotification.remove(self.Tick)
+       except ValueError:
+           pass
+
+       try:
+           self.protocol.OnFinish()#this may still cause events
+           self.FlushBuffer()
+           self.doStopLog()
+       except:
+           import traceback
+           traceback.print_exc()
+
+       eventLog.WantEventNotification.remove(self.evtLogger)
+       
+       self.spoolOn = False
+
+   def Tick(self, caller):
+        '''Called on every frame'''
+        self.imNum += 1
+        if not self.parent == None:
+            self.parent.Tick()
+        self.protocol.OnFrame(self.imNum)
+
+        if self.imNum == 2 and sampleInformation and sampleInformation.currentSlide[0]: #have first frame and should thus have an imageID
+            sampleInformation.createImage(self.md, sampleInformation.currentSlide[0])
+
+   def doStartLog(self):
+        '''Record pertinant information to metadata at start of acquisition.
+        
+        Loops through all registered sources of start metadata and adds their entries.
+        
+        See Also
+        --------
+        PYME.Acquire.MetaDataHandler
+        '''
+        dt = datetime.datetime.now()
+        
+        self.dtStart = dt
+        
+        self.tStart = time.time()
+          
+        mdt = MetaDataHandler.NestedClassMDHandler()
+          
+        mdt.setEntry('StartTime', self.tStart)
+
+        #loop over all providers of metadata
+        for mdgen in MetaDataHandler.provideStartMetadata:
+            mdgen(mdt)
+            
+        self.md.copyEntriesFrom(mdt)
+       
+
+   def doStopLog(self):
+        '''Record information to metadata at end of acquisition'''
+        self.md.setEntry('EndTime', time.time())
+        
+        #loop over all providers of metadata
+        for mdgen in MetaDataHandler.provideStopMetadata:
+           mdgen(self.md)
+
+   def fakeTime(self):
+       return self.tStart + self.imNum*self.scope.cam.GetIntegTime()
+
+   def FlushBuffer(self):
+       pass
+        
+        
+   def __del__(self):
+        if self.spoolOn:
+            self.StopSpool()

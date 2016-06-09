@@ -1,0 +1,4 @@
+Parameters: [A, x0, y0, sigma, background, bx, by]
+tol = 0.001000
+res row number: 1363, stdres row number: 1363
+
