@@ -22,8 +22,7 @@ __kernel void sum(__global const float *a_g,
 """
 
 # create context
-context = cl.create_context(cl.device_types.GPU,
-                            cl.vendors.NVDIA)
+context = cl.create_context(cl.device_types.GPU)
 print('>>> Context created')
 
 # create and build program
