@@ -27,11 +27,11 @@ def getErrorText(index, res, std):
     txtStd = 'stdres: '
     txtDel = ' delta: '
     for i in range(len(colnames)):
-        d = abs(std[i] - res[i])
+        d = abs((std[i] - res[i]) / std[i])
         if d < tol: continue
         txtRes += '%s(%f)  ' % (colnames[i], res[i])
         txtStd += '%s(%f)  ' % (colnames[i], std[i])
-        txtDel += '%s(%f)  ' % (colnames[i], d)
+        txtDel += '%s(%.1f%%)  ' % (colnames[i], d * 100)
 
     return text + txtRes + '\n' + txtStd + '\n' + txtDel + '\n\n'
 
@@ -41,7 +41,7 @@ def getErrorText(index, res, std):
 # region : Initialize parameters
 
 # > Input parameter
-numFramesToAnalyze = 5
+numFramesToAnalyze = 1
 
 fitMod = 'LatGaussFitFR'
 threshold = 0.6
@@ -187,17 +187,17 @@ ncols = len(colnames)
 
 # > write verification file
 errCount = 0
-maxCount = 50
-tol = 1e-3
+maxCount = 100
+tol = 1e-2
 
-line = 'Parameters: [%s]\ntol = %f\n' % (', '.join(colnames), tol)
+line = 'Parameters: [%s]\ntol = %.1f%%\n' % (', '.join(colnames), tol * 100)
 line += 'res row number: %d, stdres row number: %d' % (resNRows, stdresNRows)
 veriFile.writelines(line + '\n\n')
 
 # > scan each row
 for i in range(0, nrows):
     for j in range(0, ncols):
-        d = abs(stdres[i][1][j] - res[i][1][j])
+        d = abs((stdres[i][1][j] - res[i][1][j]) / stdres[i][1][j])
         if d > tol:
             errCount += 1
             veriFile.writelines(getErrorText(i, res[i][1], stdres[i][1]))
@@ -214,8 +214,8 @@ veriFile.close()
 if errCount == 0:
     print('>>> Perfect!')
 else:
-    print('>>> Created verification file %s, errCount: %d' \
-          % (veriFilename, errCount))
+    print('>>> Created verification file %s, errCount: %d (max: %d)' \
+          % (veriFilename, errCount, maxCount))
 
 if True and errCount: os.startfile(veriFilename)
 
