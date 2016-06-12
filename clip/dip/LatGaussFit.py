@@ -14,6 +14,7 @@ import scipy.optimize as optimize
 
 from PYME.Analysis.FitFactories import FFBase
 from PYME.Analysis.FitFactories.LatGaussFitFR import GaussianFitResultR
+from PYME.Analysis.FitFactories.LatGaussFitFR import f_gauss2d as fast_gauss
 
 # region : Format of Results
 
@@ -50,8 +51,10 @@ class GaussianFitFactory(FFBase.FitFactory):
     def __init__(self, data, metadata,
                  background=None, noise_sigma=None):
         # call to constructor of super class
+        fit_fcn = fast_gauss
+        # fit_fcn = f_gauss2d
         super(GaussianFitFactory, self).__init__(
-            data, metadata, f_gauss2d, background, noise_sigma)
+            data, metadata, fit_fcn, background, noise_sigma)
 
     # endregion : Constructor
 
@@ -91,7 +94,8 @@ class GaussianFitFactory(FFBase.FitFactory):
                 np.diag(cov_x) * (info_dict['fvec'] * info_dict['fvec']).sum() /
                 (len(data_mean.ravel()) - len(res)))
         except Exception:
-            print('!!! Failed to estimate errors based on the covariance matrix')
+            pass
+            # print('!!! Failed to estimate errors based on the covariance matrix')
 
         # > package results
         # --------------------------------------------------------------
@@ -110,8 +114,15 @@ def f_gauss2d(p, X, Y):
     """2D Gaussian model function with linear background
      - parameter vector [A, x0, y0, sigma, background, lin_x, lin_y]"""
     A, x0, y0, s, b, b_x, b_y = p
-    return A * np.exp(-((X - x0) ** 2 + (Y - y0) ** 2) /
-                      (2 * s ** 2)) + b + b_x * X + b_y * Y
+    # delta_x = X[1] - X[0]
+    # delta_y = Y[1] - Y[0]
+    # for i in range(len(X)): X[i] += delta_x
+    # for i in range(len(Y)): Y[i] += delta_y
+    XV, YV = np.meshgrid(X, Y, indexing='ij')
+    r = A * np.exp(-((XV - x0) ** 2 + (YV - y0) ** 2) /
+                   (2 * s ** 2)) + b + \
+        b_x * (XV - x0) + b_y * (YV - y0)
+    return r
 
 
 # endregion : Model Functions
@@ -134,10 +145,12 @@ def weighted_miss_fit(p, fcn, data, weights, *args):
     mod = mod.ravel()
     return (data - mod) * weights
 
+
 # endregion : Solver
 
 # region : Uniform Interface
 
 FitFactory = GaussianFitFactory
+FitResultsDType = result_data_type
 
 # endregion : Uniform Interface
