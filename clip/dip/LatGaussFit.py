@@ -51,8 +51,8 @@ class GaussianFitFactory(FFBase.FitFactory):
     def __init__(self, data, metadata,
                  background=None, noise_sigma=None):
         # call to constructor of super class
-        # fit_fcn = fast_gauss
-        fit_fcn = f_gauss2d
+        fit_fcn = fast_gauss
+        # fit_fcn = f_gauss2d
         super(GaussianFitFactory, self).__init__(
             data, metadata, fit_fcn, background, noise_sigma)
 

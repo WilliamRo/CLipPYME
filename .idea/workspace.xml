@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="057f8f5b-e9fa-4155-92a8-2356eae15e39" name="Default" comment="LatGaussFit.py -&gt; Perfect">
+    <list default="true" id="057f8f5b-e9fa-4155-92a8-2356eae15e39" name="Default" comment="Modified some code in testWorker.py&#10;Large delta caused by the selection of fit_fcn detected, but tolerable.">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/DH5Files/results_100x140x170_5.h5r" afterPath="$PROJECT_DIR$/DH5Files/results_100x140x170_5.h5r" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/DH5Files/veri_100x140x170_5.txt" afterPath="$PROJECT_DIR$/DH5Files/veri_100x140x170_5.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/clip/dip/LatGaussFit.py" afterPath="$PROJECT_DIR$/clip/dip/LatGaussFit.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/testWorker.py" afterPath="$PROJECT_DIR$/testWorker.py" />
     </list>
     <ignored path="CLipPYME.iws" />
@@ -19,10 +20,27 @@
   </component>
   <component name="ChangesViewManager" flattened_view="false" show_ignored="false" />
   <component name="CoverageDataManager">
-    <SUITE FILE_PATH="coverage/CLipPYME$testWorker.coverage" NAME="testWorker Coverage Results" MODIFIED="1465735763568" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/CLipPYME$testWorker.coverage" NAME="testWorker Coverage Results" MODIFIED="1465737260990" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
   </component>
   <component name="CreatePatchCommitExecutor">
     <option name="PATCH_PATH" value="" />
+  </component>
+  <component name="DockManager">
+    <window id="2">
+      <content type="file-editors">
+        <state>
+          <leaf>
+            <file leaf-file-name="CLipPYME5.pstat" pinned="false" current-in-tab="true">
+              <entry file="mock://C:\Users\user\.PyCharm2016.1\system\snapshots\CLipPYME5.pstat">
+                <provider selected="true" editor-type-id="profiler-session-editor">
+                  <state />
+                </provider>
+              </entry>
+            </file>
+          </leaf>
+        </state>
+      </content>
+    </window>
   </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
   <component name="FavoritesManager">
@@ -37,8 +55,8 @@
               <file leaf-file-name="LatGaussFit.py" pinned="false" current-in-tab="true">
                 <entry file="file://$PROJECT_DIR$/clip/dip/LatGaussFit.py">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="300">
-                      <caret line="144" column="23" selection-start-line="144" selection-start-column="23" selection-end-line="144" selection-end-column="23" />
+                    <state relative-caret-position="475">
+                      <caret line="142" column="65" selection-start-line="142" selection-start-column="65" selection-end-line="142" selection-end-column="65" />
                       <folding>
                         <element signature="e#225#242#0" expanded="true" />
                         <element signature="e#1843#1865#0" expanded="true" />
@@ -54,21 +72,33 @@
                   </provider>
                 </entry>
               </file>
+              <file leaf-file-name="minpack.py" pinned="false" current-in-tab="false">
+                <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/scipy/optimize/minpack.py">
+                  <provider selected="true" editor-type-id="text-editor">
+                    <state relative-caret-position="-1456">
+                      <caret line="268" column="57" selection-start-line="268" selection-start-column="57" selection-end-line="268" selection-end-column="57" />
+                      <folding />
+                    </state>
+                  </provider>
+                </entry>
+              </file>
             </leaf>
           </split-first>
           <split-second>
-            <leaf>
-              <file leaf-file-name="fitWorker.py" pinned="false" current-in-tab="false">
+            <leaf SIDE_TABS_SIZE_LIMIT_KEY="375">
+              <file leaf-file-name="fitWorker.py" pinned="false" current-in-tab="true">
                 <entry file="file://$PROJECT_DIR$/StandaloneWorker/fitWorker.py">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="682">
-                      <caret line="211" column="0" selection-start-line="211" selection-start-column="0" selection-end-line="211" selection-end-column="0" />
+                    <state relative-caret-position="125">
+                      <caret line="22" column="27" selection-start-line="22" selection-start-column="27" selection-end-line="22" selection-end-column="27" />
                       <folding>
+                        <element signature="e#1165#1188#0" expanded="true" />
                         <element signature="e#2403#2425#0" expanded="true" />
                         <element signature="e#2472#5474#0" expanded="true" />
                         <element signature="e#2874#2915#0" expanded="true" />
                         <element signature="e#3427#3471#0" expanded="true" />
                         <element signature="e#4248#4302#0" expanded="true" />
+                        <element signature="e#5511#5537#0" expanded="true" />
                         <element signature="e#5573#5923#0" expanded="true" />
                       </folding>
                     </state>
@@ -78,7 +108,7 @@
               <file leaf-file-name="LatGaussFitFR.py" pinned="false" current-in-tab="false">
                 <entry file="file://$PROJECT_DIR$/PYME/Analysis/FitFactories/LatGaussFitFR.py">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="369">
+                    <state relative-caret-position="2400">
                       <caret line="139" column="0" selection-start-line="139" selection-start-column="0" selection-end-line="139" selection-end-column="0" />
                       <folding>
                         <element signature="e#1342#1595#0" expanded="true" />
@@ -92,7 +122,7 @@
                   </provider>
                 </entry>
               </file>
-              <file leaf-file-name="shape_base.py" pinned="false" current-in-tab="true">
+              <file leaf-file-name="shape_base.py" pinned="false" current-in-tab="false">
                 <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/shape_base.py">
                   <provider selected="true" editor-type-id="text-editor">
                     <state relative-caret-position="1475">
@@ -105,7 +135,7 @@
               <file leaf-file-name="pydevd.py" pinned="false" current-in-tab="false">
                 <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/pydevd.py">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="582">
+                    <state relative-caret-position="10575">
                       <caret line="1530" column="0" selection-start-line="1530" selection-start-column="0" selection-end-line="1530" selection-end-column="0" />
                       <folding>
                         <element signature="e#37194#40086#0" expanded="true" />
@@ -123,14 +153,13 @@
           <file leaf-file-name="testWorker.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/testWorker.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="600">
-                  <caret line="215" column="5" selection-start-line="215" selection-start-column="5" selection-end-line="215" selection-end-column="5" />
+                <state relative-caret-position="276">
+                  <caret line="43" column="22" selection-start-line="43" selection-start-column="22" selection-end-line="43" selection-end-column="22" />
                   <folding>
                     <element signature="e#0#58#1" expanded="true" />
-                    <element signature="e#391#411#0" expanded="true" />
                     <element signature="e#452#914#0" expanded="true" />
-                    <element signature="e#942#974#0" expanded="true" />
                     <element signature="e#2561#2579#0" expanded="true" />
+                    <element signature="e#3378#3395#0" expanded="true" />
                   </folding>
                 </state>
               </provider>
@@ -183,7 +212,7 @@
     <ConfirmationsSetting value="0" id="Remove" />
   </component>
   <component name="ProjectView">
-    <navigator currentView="ProjectPane" proportions="" version="1">
+    <navigator proportions="" version="1">
       <flattenPackages />
       <showMembers />
       <showModules />
@@ -196,18 +225,13 @@
       <manualOrder />
       <foldersAlwaysOnTop value="true" />
     </navigator>
-    <panes>
-      <pane id="Scratches" />
-      <pane id="ProjectPane">
-        <subPane />
-      </pane>
-      <pane id="Scope" />
-    </panes>
+    <panes />
   </component>
   <component name="PropertiesComponent">
     <property name="settings.editor.selected.configurable" value="preferences.keymap" />
     <property name="settings.editor.splitter.proportion" value="0.2" />
     <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/.." />
   </component>
   <component name="RunManager" selected="Python.testWorker">
     <configuration default="false" name="testWorker" type="PythonConfigurationType" factoryName="Python" temporary="true">
@@ -494,7 +518,14 @@
       <option name="project" value="LOCAL" />
       <updated>1465736379863</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="Modified some code in testWorker.py&#10;Large delta caused by the selection of fit_fcn detected, but tolerable.">
+      <created>1465736394443</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1465736394443</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="ToolWindowManager">
@@ -507,7 +538,7 @@
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="true" internal_type="DOCKED" type="FLOATING" visible="false" show_stripe_button="true" weight="0.49895832" sideWeight="0.50437635" order="11" side_tool="false" content_ui="tabs" x="-1108" y="26" width="976" height="1038" />
       <window_info id="Version Control" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="true" show_stripe_button="true" weight="0.74070024" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" x="70" y="249" width="721" height="724" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="false" show_stripe_button="true" weight="0.9978118" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" x="-1174" y="106" width="992" height="947" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="true" show_stripe_button="true" weight="0.9978118" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" x="-1174" y="106" width="992" height="947" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32932165" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.1578125" sideWeight="0.5" order="0" side_tool="true" content_ui="tabs" />
@@ -579,6 +610,95 @@
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/clip/dip/LatGaussFit.py">
       <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="750">
+          <caret line="133" column="23" selection-start-line="133" selection-start-column="23" selection-end-line="133" selection-end-column="23" />
+          <folding>
+            <element signature="e#225#242#0" expanded="true" />
+            <element signature="e#1843#1865#0" expanded="true" />
+            <element signature="e#1967#2174#0" expanded="true" />
+            <element signature="e#2211#2233#0" expanded="true" />
+            <element signature="e#2337#3972#0" expanded="true" />
+            <element signature="e#4016#4042#0" expanded="true" />
+            <element signature="e#4073#4577#0" expanded="true" />
+            <element signature="e#4731#4934#0" expanded="true" />
+            <element signature="e#5572#5600#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/scipy/optimize/minpack.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="900">
+          <caret line="269" column="47" selection-start-line="269" selection-start-column="47" selection-end-line="269" selection-end-column="47" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/StandaloneWorker/fitWorker.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="775">
+          <caret line="211" column="0" selection-start-line="211" selection-start-column="0" selection-end-line="211" selection-end-column="0" />
+          <folding>
+            <element signature="e#1165#1188#0" expanded="true" />
+            <element signature="e#2403#2425#0" expanded="true" />
+            <element signature="e#2472#5474#0" expanded="true" />
+            <element signature="e#2874#2915#0" expanded="true" />
+            <element signature="e#3427#3471#0" expanded="true" />
+            <element signature="e#4248#4302#0" expanded="true" />
+            <element signature="e#5511#5537#0" expanded="true" />
+            <element signature="e#5573#5923#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PYME/Analysis/FitFactories/LatGaussFitFR.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2400">
+          <caret line="139" column="0" selection-start-line="139" selection-start-column="0" selection-end-line="139" selection-end-column="0" />
+          <folding>
+            <element signature="e#1342#1595#0" expanded="true" />
+            <element signature="e#1908#2085#0" expanded="true" />
+            <element signature="e#2428#3424#0" expanded="false" />
+            <element signature="e#3535#3844#0" expanded="true" />
+            <element signature="e#3992#4379#0" expanded="true" />
+            <element signature="e#5526#5915#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/shape_base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1475">
+          <caret line="272" column="23" selection-start-line="272" selection-start-column="23" selection-end-line="272" selection-end-column="23" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/pydevd.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="10575">
+          <caret line="1530" column="0" selection-start-line="1530" selection-start-column="0" selection-end-line="1530" selection-end-column="0" />
+          <folding>
+            <element signature="e#37194#40086#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/testWorker.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#58#1" expanded="true" />
+            <element signature="e#452#914#0" expanded="true" />
+            <element signature="e#2561#2579#0" expanded="true" />
+            <element signature="e#3378#3395#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/clip/dip/LatGaussFit.py">
+      <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="175">
           <caret line="7" column="72" selection-start-line="7" selection-start-column="72" selection-end-line="7" selection-end-column="72" />
           <folding>
@@ -601,10 +721,9 @@
           <caret line="15" column="49" selection-start-line="15" selection-start-column="49" selection-end-line="15" selection-end-column="49" />
           <folding>
             <element signature="e#0#58#1" expanded="true" />
-            <element signature="e#391#411#0" expanded="true" />
             <element signature="e#452#914#0" expanded="true" />
-            <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
+            <element signature="e#3378#3395#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -613,9 +732,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#212#1" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -623,7 +739,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -651,10 +766,9 @@
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
             <element signature="e#0#58#1" expanded="true" />
-            <element signature="e#391#411#0" expanded="true" />
             <element signature="e#452#914#0" expanded="true" />
-            <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
+            <element signature="e#3378#3395#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -683,10 +797,9 @@
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
             <element signature="e#0#58#1" expanded="true" />
-            <element signature="e#391#411#0" expanded="true" />
             <element signature="e#452#914#0" expanded="true" />
-            <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
+            <element signature="e#3378#3395#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -695,7 +808,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -703,9 +815,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="425">
           <caret line="18" column="29" selection-start-line="18" selection-start-column="29" selection-end-line="18" selection-end-column="29" />
-          <folding>
-            <element signature="e#0#212#1" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -717,21 +826,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/scipy/optimize/minpack.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="244">
-          <caret line="370" column="0" selection-start-line="370" selection-start-column="0" selection-end-line="370" selection-end-column="0" />
-          <folding>
-            <element signature="e#630#1379#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/PYME/Analysis/cModels/gauss_app.pyd">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -739,9 +837,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="625">
           <caret line="50" column="0" selection-start-line="50" selection-start-column="0" selection-end-line="50" selection-end-column="0" />
-          <folding>
-            <element signature="e#261#389#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -749,9 +844,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="144">
           <caret line="460" column="4" selection-start-line="460" selection-start-column="4" selection-end-line="460" selection-end-column="4" />
-          <folding>
-            <element signature="e#17202#19872#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -767,15 +859,12 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="344">
           <caret line="76" column="0" selection-start-line="76" selection-start-column="0" selection-end-line="76" selection-end-column="0" />
-          <folding>
-            <element signature="e#3158#3298#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$APPLICATION_HOME_DIR$/helpers/pydev/pydevd.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="582">
+        <state relative-caret-position="10575">
           <caret line="1530" column="0" selection-start-line="1530" selection-start-column="0" selection-end-line="1530" selection-end-column="0" />
           <folding>
             <element signature="e#37194#40086#0" expanded="true" />
@@ -785,7 +874,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/PYME/Analysis/FitFactories/LatGaussFitFR.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="369">
+        <state relative-caret-position="2400">
           <caret line="139" column="0" selection-start-line="139" selection-start-column="0" selection-end-line="139" selection-end-column="0" />
           <folding>
             <element signature="e#1342#1595#0" expanded="true" />
@@ -798,35 +887,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/StandaloneWorker/fitWorker.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="682">
-          <caret line="211" column="0" selection-start-line="211" selection-start-column="0" selection-end-line="211" selection-end-column="0" />
-          <folding>
-            <element signature="e#2403#2425#0" expanded="true" />
-            <element signature="e#2472#5474#0" expanded="true" />
-            <element signature="e#2874#2915#0" expanded="true" />
-            <element signature="e#3427#3471#0" expanded="true" />
-            <element signature="e#4248#4302#0" expanded="true" />
-            <element signature="e#5573#5923#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/testWorker.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="600">
-          <caret line="215" column="5" selection-start-line="215" selection-start-column="5" selection-end-line="215" selection-end-column="5" />
-          <folding>
-            <element signature="e#0#58#1" expanded="true" />
-            <element signature="e#391#411#0" expanded="true" />
-            <element signature="e#452#914#0" expanded="true" />
-            <element signature="e#942#974#0" expanded="true" />
-            <element signature="e#2561#2579#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/numpy/core/shape_base.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1475">
@@ -835,10 +895,31 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$USER_HOME$/Anaconda2/Lib/site-packages/scipy/optimize/minpack.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1456">
+          <caret line="268" column="57" selection-start-line="268" selection-start-column="57" selection-end-line="268" selection-end-column="57" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/testWorker.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="276">
+          <caret line="43" column="22" selection-start-line="43" selection-start-column="22" selection-end-line="43" selection-end-column="22" />
+          <folding>
+            <element signature="e#0#58#1" expanded="true" />
+            <element signature="e#452#914#0" expanded="true" />
+            <element signature="e#2561#2579#0" expanded="true" />
+            <element signature="e#3378#3395#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/clip/dip/LatGaussFit.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="300">
-          <caret line="144" column="23" selection-start-line="144" selection-start-column="23" selection-end-line="144" selection-end-column="23" />
+        <state relative-caret-position="475">
+          <caret line="142" column="65" selection-start-line="142" selection-start-column="65" selection-end-line="142" selection-end-column="65" />
           <folding>
             <element signature="e#225#242#0" expanded="true" />
             <element signature="e#1843#1865#0" expanded="true" />
@@ -849,6 +930,23 @@
             <element signature="e#4073#4577#0" expanded="true" />
             <element signature="e#4731#4934#0" expanded="true" />
             <element signature="e#5572#5600#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/StandaloneWorker/fitWorker.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="22" column="27" selection-start-line="22" selection-start-column="27" selection-end-line="22" selection-end-column="27" />
+          <folding>
+            <element signature="e#1165#1188#0" expanded="true" />
+            <element signature="e#2403#2425#0" expanded="true" />
+            <element signature="e#2472#5474#0" expanded="true" />
+            <element signature="e#2874#2915#0" expanded="true" />
+            <element signature="e#3427#3471#0" expanded="true" />
+            <element signature="e#4248#4302#0" expanded="true" />
+            <element signature="e#5511#5537#0" expanded="true" />
+            <element signature="e#5573#5923#0" expanded="true" />
           </folding>
         </state>
       </provider>

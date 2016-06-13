@@ -41,7 +41,7 @@ def getErrorText(index, res, std):
 # region : Initialize parameters
 
 # > Input parameter
-numFramesToAnalyze = 1
+numFramesToAnalyze = 5
 
 fitMod = 'LatGaussFitFR'
 threshold = 0.6
@@ -217,6 +217,6 @@ else:
     print('>>> Created verification file %s, errCount: %d (max: %d)' \
           % (veriFilename, errCount, maxCount))
 
-if True and errCount: os.startfile(veriFilename)
+if False and errCount: os.startfile(veriFilename)
 
 # endregion : Verify
