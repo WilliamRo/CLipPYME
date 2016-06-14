@@ -12,7 +12,6 @@ from .. import cl
 import numpy as np
 import scipy.optimize as optimize
 
-from PYME.Analysis.FitFactories import FFBase
 from PYME.Analysis.FitFactories.LatGaussFitFR import GaussianFitResultR
 from PYME.Analysis.FitFactories.LatGaussFitFR import f_gauss2d as fast_gauss
 
@@ -42,30 +41,69 @@ result_data_type = [('tIndex', '<i4'),
 
 # endregion : Format of Results
 
-class GaussianFitFactory(FFBase.FitFactory):
-    """GaussianFitFactory inherits from FFBase.FitFactory to use its
-    getROIAtPoint method"""
+class GaussianFitFactory:
+    """GaussianFitFactory
+        Current version only support 2D fitting
+    """
 
     # region : Constructor
 
     def __init__(self, data, metadata,
                  background=None, noise_sigma=None):
-        # call to constructor of super class
-        fit_fcn = fast_gauss
-        # fit_fcn = f_gauss2d
-        super(GaussianFitFactory, self).__init__(
-            data, metadata, fit_fcn, background, noise_sigma)
+        # set fields
+        self.data = data
+        self.background = background
+        self.metadata = metadata
+        self.noise_sigma = noise_sigma
+        self.fit_fcn = fast_gauss
+        # self.fit_fcn = f_gauss2d
+
+        # prepare noise_sigma and background
+        if self.noise_sigma is None:
+            sigma = np.sqrt(self.metadata.Camera.ReadNoise ** 2 +
+                            (self.metadata.Camera.NoiseFactor ** 2) *
+                            self.metadata.Camera.ElectronsPerCount *
+                            self.metadata.Camera.TrueEMGain *
+                            (np.maximum(data, 1) + 1)) / \
+                    self.metadata.Camera.ElectronsPerCount
+
+        if self.background is not None and len(np.shape(self.background)) > 1 \
+                and not ('Analysis.subtractBackground' in self.metadata.getEntryNames()
+                         and self.metadata.Analysis.subtractBackground is False):
+            self.background = self.background.squeeze() - \
+                         self.metadata.Camera.ADOffset
+        else:
+            self.background = 0
 
     # endregion : Constructor
 
     # region : Core Method
 
-    def FromPoint(self, x, y, z=None,
-                  roi_half_size=5, axial_half_size=15):
+    def FromPoint(self, x, y, roi_half_size=5):
         # > get ROI [3.0%]
         # --------------------------------------------------------------
-        X, Y, data, background, sigma, xslice, yslice, zslice = \
-            self.getROIAtPoint(x, y, z, roi_half_size, axial_half_size)
+        x_r = round(x)
+        y_r = round(y)
+
+        xslice = slice(max((x_r - roi_half_size), 0),
+                       min((x_r + roi_half_size + 1), self.data.shape[0]))
+        yslice = slice(max((y_r - roi_half_size), 0),
+                       min((y_r + roi_half_size + 1), self.data.shape[1]))
+
+        data = self.data[xslice, yslice].squeeze() \
+               - self.metadata.Camera.ADOffset
+
+        X = 1e3 * self.metadata.voxelsize.x * np.mgrid[xslice]
+        Y = 1e3 * self.metadata.voxelsize.y * np.mgrid[yslice]
+
+        # estimate errors in data
+        sigma = self.noise_sigma
+        if not isinstance(sigma, float):
+            sigma = self.noise_sigma[xslice, yslice]
+
+        background = self.background
+        if not isinstance(background, int):
+            background = self.background[xslice, yslice]
 
         data_mean = data - background
 
@@ -76,15 +114,13 @@ class GaussianFitFactory(FFBase.FitFactory):
         x0 = 1e3 * self.metadata.voxelsize.x * x
         y0 = 1e3 * self.metadata.voxelsize.y * y
 
-        bg_mean = np.mean(background)
-
         start_parameters = [A, x0, y0, 250 / 2.35,
                             data_mean.min(), .001, .001]
 
         # > do the fit
         # --------------------------------------------------------------
         (res, cov_x, info_dict, msg, res_code) = fit_model_weighted(
-            self.fitfcn, start_parameters, data_mean, sigma, X, Y)
+            self.fit_fcn, start_parameters, data_mean, sigma, X, Y)
 
         # > try to estimate errors based on the covariance matrix
         # --------------------------------------------------------------
@@ -99,7 +135,9 @@ class GaussianFitFactory(FFBase.FitFactory):
 
         # > package results
         # --------------------------------------------------------------
-        return GaussianFitResultR(res, self.metadata, (xslice, yslice, zslice),
+        bg_mean = 0
+        return GaussianFitResultR(res, self.metadata,
+                                  (xslice, yslice, slice(0, 1, None)),
                                   res_code, fit_errors, bg_mean)
 
     # endregion : Core Method

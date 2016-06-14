@@ -188,7 +188,7 @@ ncols = len(colnames)
 # > write verification file
 errCount = 0
 maxCount = 100
-tol = 1e-2
+tol = 1e-3
 
 line = 'Parameters: [%s]\ntol = %.1f%%\n' % (', '.join(colnames), tol * 100)
 line += 'res row number: %d, stdres row number: %d' % (resNRows, stdresNRows)
@@ -217,6 +217,6 @@ else:
     print('>>> Created verification file %s, errCount: %d (max: %d)' \
           % (veriFilename, errCount, maxCount))
 
-if False and errCount: os.startfile(veriFilename)
+if True and errCount: os.startfile(veriFilename)
 
 # endregion : Verify
