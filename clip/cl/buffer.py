@@ -7,7 +7,7 @@
 #
 ########################################################################
 
-from .memory_object import MemoryObject
+from memory_object import MemoryObject
 
 import pyopencl as cl
 

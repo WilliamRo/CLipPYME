@@ -50,7 +50,8 @@ class GaussianFitFactory:
 
     def __init__(self, data, metadata,
                  background=None, noise_sigma=None):
-        # set fields
+        # > set fields
+        # - This is stage I. In stage II we assume
         self.data = data
         self.background = background
         self.metadata = metadata
@@ -58,7 +59,8 @@ class GaussianFitFactory:
         self.fit_fcn = fast_gauss
         # self.fit_fcn = f_gauss2d
 
-        # prepare noise_sigma and background
+        # > prepare noise_sigma and background
+        # - CPU
         if self.noise_sigma is None:
             sigma = np.sqrt(self.metadata.Camera.ReadNoise ** 2 +
                             (self.metadata.Camera.NoiseFactor ** 2) *
@@ -70,6 +72,7 @@ class GaussianFitFactory:
         if self.background is not None and len(np.shape(self.background)) > 1 \
                 and not ('Analysis.subtractBackground' in self.metadata.getEntryNames()
                          and self.metadata.Analysis.subtractBackground is False):
+            # - GPU
             self.background = self.background.squeeze() - \
                          self.metadata.Camera.ADOffset
         else:

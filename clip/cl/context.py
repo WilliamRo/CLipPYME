@@ -9,7 +9,7 @@
 
 import pyopencl as cl
 
-from .enum import mem_host_ptr_mode
+from enum import mem_host_ptr_mode
 
 
 class Context(cl.Context):

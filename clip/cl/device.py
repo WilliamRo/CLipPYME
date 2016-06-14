@@ -7,7 +7,7 @@
 #
 ########################################################################
 
-from .enum import queue_properties
+import enum.queue_properties as queue_properties
 
 import pyopencl as cl
 
