@@ -65,7 +65,7 @@ class Device(cl.Device):
         info += 'Image Support:       ' + str(self.image_support) + '\n'
 
         if show_ext:
-            info += 'Extensions:          ' + '\n\t\t\t\b\b\b'.join(self.extensions_list) + '\n'
+            info += 'Extensions:          ' + '\n\t\t\t\t\t '.join(self.extensions_list) + '\n'
 
         return info
 
