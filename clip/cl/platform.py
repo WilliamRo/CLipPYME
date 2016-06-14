@@ -51,9 +51,9 @@ class Platform(cl.Platform):
     def details(self, show_ext=False):
         details = ''
         details += self.info() + '\n'
-        for i in range(len(self.Devices)):
+        for i in range(len(self.devices)):
             details += '[Device %d]\n' % i
-            details += self.Devices[i].info(show_ext) + '\n'
+            details += self.devices[i].info(show_ext) + '\n'
 
         return details
 
