@@ -27,7 +27,7 @@ print('>>> Context created')
 
 # create and build program
 program = context.create_build_program(src)
-print( '>>> Program created and built')
+print('>>> Program created and built')
 
 # create buffers
 am = cl.mem_access_mode

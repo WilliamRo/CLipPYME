@@ -9,7 +9,7 @@
 
 import pyopencl as cl
 
-from device import Device
+from _device import Device
 
 
 class Platform(cl.Platform):

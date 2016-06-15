@@ -9,7 +9,7 @@
 
 import pyopencl as cl
 
-from kernel import Kernel
+from _kernel import Kernel
 
 
 class Program(cl.Program):

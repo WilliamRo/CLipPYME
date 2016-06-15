@@ -19,12 +19,12 @@ from pyopencl import enqueue_copy
 from enum import device_types, vendors, \
     mem_host_ptr_mode, mem_access_mode
 
-from platform import Platform
-from device import Device
-from context import Context
-from command_queue import CommandQueue
-from event import Event
-from memory_object import MemoryObject
+from _platform import Platform
+from _device import Device
+from _context import Context
+from _command_queue import CommandQueue
+from _event import Event
+from _memory_object import MemoryObject
 
 __all__ = [
     # PyOpenCL methods
@@ -40,6 +40,7 @@ __all__ = [
 
 # Initialize variables
 context = None
+program = None
 
 # Get all CL platforms
 platforms = Platform.get_platforms()
@@ -101,4 +102,17 @@ def create_context(device_type=device_types.ALL,
 
     return context
 
+
+def create_build_program(src, devices=None,
+                         options=[], cache_dir=None):
+    """Create and build program on cl.context"""
+    if context is None:
+        raise StandardError('!!! cl.context is None')
+    return context.create_build_program(src, devices,
+                                        options, cache_dir)
+
+
 # endregion : Methods
+
+
+pass  # patch for region

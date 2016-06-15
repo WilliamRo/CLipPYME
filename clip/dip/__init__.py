@@ -26,11 +26,21 @@ for f in files:
 
 # endregion : Load kernel sources
 
+# region : Initialize CL
+
+# > create OpenCL context
+cl.create_context()
+# > create and build program on context
+cl.create_build_program(kernel_sources)
+
+# endregion : Initialize CL
+
 # region : Self-test
 
 if __name__ == '__main__':
-    context = cl.create_context()
-    print context.device_list[0].name
+    am = cl.mem_access_mode
+    hm = cl.mem_host_ptr_mode
+    cl.program.cl_test()
 
 
 # endregion : Self-test

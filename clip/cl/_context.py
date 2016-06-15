@@ -75,11 +75,14 @@ class Context(cl.Context):
     def create_build_program(self, src, devices=None,
                              options=[], cache_dir=None):
         # import
-        from .program import Program
+        from _program import Program
+        import clip.cl
         # create program
         self.program = Program(self, src)
         # build program
         self.program.build(options, devices, cache_dir)
+
+        clip.cl.program = self.program
 
         return self.program
 
@@ -89,7 +92,7 @@ class Context(cl.Context):
     def create_buffer(self, access_mode, size=0, hostbuf=None,
                       host_ptr_mode=mem_host_ptr_mode.DEFAULT):
         # import
-        from .buffer import Buffer
+        from ._buffer import Buffer
         # create buffer
         buf = Buffer(self, access_mode | host_ptr_mode,
                      size, hostbuf)

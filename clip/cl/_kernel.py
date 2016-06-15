@@ -55,10 +55,12 @@ class Kernel(cl.Kernel):
 
     # region : Operator Overloading
 
-    def __call__(self, global_size, args, local_size=None, queue=None,
-                 global_offset=None, wait_for=None, g_times_l=False):
+    def __call__(self, global_size=(1,),
+                 args=(), local_size=None,
+                 queue=None, global_offset=None,
+                 wait_for=None, g_times_l=False):
         # import
-        from .event import Event
+        from ._event import Event
         # if queue is None, set default queue
         if queue is None:
             queue = self.context.default_queue

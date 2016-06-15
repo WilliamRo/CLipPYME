@@ -73,7 +73,7 @@ class Device(cl.Device):
         if 'context' not in dir(self):
             raise Exception('!!! Failed to create queue(context not found)')
         # import
-        from .command_queue import CommandQueue
+        from ._command_queue import CommandQueue
         # create command queue
         queue = CommandQueue(self.context, self, properties)
         # put queue in list
