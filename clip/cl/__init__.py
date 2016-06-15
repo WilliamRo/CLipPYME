@@ -15,6 +15,7 @@ https://documen.tician.de/pyopencl/
 """
 
 from pyopencl import enqueue_copy
+from pyopencl import wait_for_events
 
 from enum import device_types, vendors, \
     mem_host_ptr_mode, mem_access_mode
@@ -28,7 +29,7 @@ from _memory_object import MemoryObject
 
 __all__ = [
     # PyOpenCL methods
-    'enqueue_copy',
+    'enqueue_copy', 'wait_for_events',
     # modules
     'Platform', 'Device', 'Context',
     'CommandQueue', 'Event', 'MemoryObject',
@@ -110,6 +111,17 @@ def create_build_program(src, devices=None,
         raise StandardError('!!! cl.context is None')
     return context.create_build_program(src, devices,
                                         options, cache_dir)
+
+
+def create_buffer(access_mode, size=0, hostbuf=None,
+                  host_ptr_mode=mem_host_ptr_mode.DEFAULT):
+    """Create buffer on cl.context"""
+    return context.create_buffer(access_mode, size, hostbuf,
+                                 host_ptr_mode)
+
+
+def flush_default_queue():
+    context.default_queue.flush()
 
 
 # endregion : Methods

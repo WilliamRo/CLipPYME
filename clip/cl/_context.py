@@ -92,7 +92,7 @@ class Context(cl.Context):
     def create_buffer(self, access_mode, size=0, hostbuf=None,
                       host_ptr_mode=mem_host_ptr_mode.DEFAULT):
         # import
-        from ._buffer import Buffer
+        from _buffer import Buffer
         # create buffer
         buf = Buffer(self, access_mode | host_ptr_mode,
                      size, hostbuf)

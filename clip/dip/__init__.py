@@ -33,14 +33,15 @@ cl.create_context()
 # > create and build program on context
 cl.create_build_program(kernel_sources)
 
+print('-=> dip.ip initialized')
+
 # endregion : Initialize CL
 
 # region : Self-test
 
 if __name__ == '__main__':
-    am = cl.mem_access_mode
-    hm = cl.mem_host_ptr_mode
-    cl.program.cl_test()
+    import numpy as np
+    cl.program.cl_test((3, 2, 1), (np.int32(8),))
 
 
 # endregion : Self-test

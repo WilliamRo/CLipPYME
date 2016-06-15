@@ -60,7 +60,7 @@ class Kernel(cl.Kernel):
                  queue=None, global_offset=None,
                  wait_for=None, g_times_l=False):
         # import
-        from ._event import Event
+        from _event import Event
         # if queue is None, set default queue
         if queue is None:
             queue = self.context.default_queue

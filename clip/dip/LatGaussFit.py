@@ -7,13 +7,14 @@
 #
 ########################################################################
 
-from .. import cl
+import clip.cl as cl
 
 import numpy as np
 import scipy.optimize as optimize
 
 from PYME.Analysis.FitFactories.LatGaussFitFR import GaussianFitResultR
-from PYME.Analysis.FitFactories.LatGaussFitFR import f_gauss2d as fast_gauss
+from PYME.Analysis.FitFactories.LatGaussFitFR import \
+    f_gauss2d as fast_gauss
 
 # region : Format of Results
 
@@ -32,9 +33,15 @@ result_data_type = [('tIndex', '<i4'),
                                   ('bx', '<f4'),
                                   ('by', '<f4')]),
                     ('resultCode', '<i4'),
-                    ('slicesUsed', [('x', [('start', '<i4'), ('stop', '<i4'), ('step', '<i4')]),
-                                    ('y', [('start', '<i4'), ('stop', '<i4'), ('step', '<i4')]),
-                                    ('z', [('start', '<i4'), ('stop', '<i4'), ('step', '<i4')])]),
+                    ('slicesUsed', [('x',
+                                     [('start', '<i4'), ('stop', '<i4'),
+                                      ('step', '<i4')]),
+                                    ('y',
+                                     [('start', '<i4'), ('stop', '<i4'),
+                                      ('step', '<i4')]),
+                                    ('z',
+                                     [('start', '<i4'), ('stop', '<i4'),
+                                      ('step', '<i4')])]),
                     ('subtractedBackground', '<f4')
                     ]
 
@@ -50,33 +57,70 @@ class GaussianFitFactory:
 
     def __init__(self, data, metadata,
                  background=None, noise_sigma=None):
-        # > set fields
-        # - This is stage I. In stage II we assume
-        self.data = data
+
+        self.data = data.squeeze()
         self.background = background
-        self.metadata = metadata
         self.noise_sigma = noise_sigma
+        self.sigma_is_scalar = not len(np.shape(noise_sigma)) > 1
+        self.metadata = metadata
         self.fit_fcn = fast_gauss
-        # self.fit_fcn = f_gauss2d
 
-        # > prepare noise_sigma and background
-        # - CPU
-        if self.noise_sigma is None:
-            sigma = np.sqrt(self.metadata.Camera.ReadNoise ** 2 +
-                            (self.metadata.Camera.NoiseFactor ** 2) *
-                            self.metadata.Camera.ElectronsPerCount *
-                            self.metadata.Camera.TrueEMGain *
-                            (np.maximum(data, 1) + 1)) / \
-                    self.metadata.Camera.ElectronsPerCount
+        ado = np.float32(self.metadata.Camera.ADOffset)
+        am = cl.mem_access_mode
+        hm = cl.mem_host_ptr_mode
 
-        if self.background is not None and len(np.shape(self.background)) > 1 \
-                and not ('Analysis.subtractBackground' in self.metadata.getEntryNames()
-                         and self.metadata.Analysis.subtractBackground is False):
-            # - GPU
-            self.background = self.background.squeeze() - \
-                         self.metadata.Camera.ADOffset
+        # region : Data pre-processing
+
+        if ado != 0:
+            self.data -= ado
+
+        # endregion : Data pre-processing
+
+        # region : Background pre-processing
+
+        pp1 = self.background is not None
+        pp2 = len(np.shape(background)) > 1
+        pp3 = 'Analysis.subtractBackground' in \
+              self.metadata.getEntryNames() and \
+              self.metadata.Analysis.subtractBackground is False
+
+        if pp1 and pp2 and not pp3:
+            self.background = self.background.squeeze() - ado
         else:
             self.background = 0
+
+        # endregion : Background pre-processing
+
+        # region : Noise sigma pre-processing
+
+        if self.noise_sigma is None:
+            self.noise_sigma = \
+                np.sqrt(self.metadata.Camera.ReadNoise ** 2 +
+                        (self.metadata.Camera.NoiseFactor ** 2) *
+                        self.metadata.Camera.ElectronsPerCount *
+                        self.metadata.Camera.TrueEMGain *
+                        (np.maximum(data, 1) + 1)) / \
+                self.metadata.Camera.ElectronsPerCount
+        if not self.sigma_is_scalar:
+            self.noise_sigma = self.noise_sigma.squeeze()
+
+        # > initialize sigma in device
+        cl.sigma = cl.create_buffer(am.READ_ONLY,
+                                    hostbuf=self.noise_sigma,
+                                    host_ptr_mode=hm.COPY_HOST_PTR)
+
+        # endregion : Noise sigma pre-processing
+
+        # region : Initialize data in device
+
+        self.data_mean = self.data - self.background
+        cl.data = cl.create_buffer(am.READ_ONLY,
+                                   hostbuf=self.data_mean,
+                                   host_ptr_mode=hm.COPY_HOST_PTR)
+
+        # endregion : Initialize data in device
+
+        pass
 
     # endregion : Constructor
 
@@ -85,30 +129,29 @@ class GaussianFitFactory:
     def FromPoint(self, x, y, roi_half_size=5):
         # > get ROI [3.0%]
         # --------------------------------------------------------------
+        # region : STD
         x_r = round(x)
         y_r = round(y)
 
         xslice = slice(max((x_r - roi_half_size), 0),
-                       min((x_r + roi_half_size + 1), self.data.shape[0]))
+                       min((x_r + roi_half_size + 1),
+                           self.data.shape[0]))
         yslice = slice(max((y_r - roi_half_size), 0),
-                       min((y_r + roi_half_size + 1), self.data.shape[1]))
+                       min((y_r + roi_half_size + 1),
+                           self.data.shape[1]))
 
-        data = self.data[xslice, yslice].squeeze() \
-               - self.metadata.Camera.ADOffset
+        data = self.data[xslice, yslice]
 
         X = 1e3 * self.metadata.voxelsize.x * np.mgrid[xslice]
         Y = 1e3 * self.metadata.voxelsize.y * np.mgrid[yslice]
 
         # estimate errors in data
         sigma = self.noise_sigma
-        if not isinstance(sigma, float):
+        if not self.sigma_is_scalar:
             sigma = self.noise_sigma[xslice, yslice]
 
-        background = self.background
-        if not isinstance(background, int):
-            background = self.background[xslice, yslice]
-
-        data_mean = data - background
+        data_mean = self.data_mean[xslice, yslice]
+        # endregion : STD
 
         # > estimate some start parameters
         # --------------------------------------------------------------
@@ -130,11 +173,13 @@ class GaussianFitFactory:
         fit_errors = None
         try:
             fit_errors = np.sqrt(
-                np.diag(cov_x) * (info_dict['fvec'] * info_dict['fvec']).sum() /
+                np.diag(cov_x) * (
+                    info_dict['fvec'] * info_dict['fvec']).sum() /
                 (len(data_mean.ravel()) - len(res)))
         except Exception:
             pass
-            # print('!!! Failed to estimate errors based on the covariance matrix')
+            # print('!!! Failed to estimate errors based on the
+            # covariance matrix')
 
         # > package results
         # --------------------------------------------------------------
