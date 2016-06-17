@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="057f8f5b-e9fa-4155-92a8-2356eae15e39" name="Default" comment="7th Commit">
+    <list default="true" id="057f8f5b-e9fa-4155-92a8-2356eae15e39" name="Default" comment="Wm: 10th commit">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/testWorker.py" afterPath="$PROJECT_DIR$/testWorker.py" />
     </list>
@@ -76,7 +76,7 @@
               <file leaf-file-name="_buffer.py" pinned="false" current-in-tab="false">
                 <entry file="file://$PROJECT_DIR$/clip/cl/_buffer.py">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="425">
+                    <state relative-caret-position="475">
                       <caret line="23" column="8" selection-start-line="23" selection-start-column="8" selection-end-line="23" selection-end-column="8" />
                       <folding>
                         <element signature="e#225#264#0" expanded="true" />
@@ -93,7 +93,7 @@
               <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
                 <entry file="file://$PROJECT_DIR$/clip/cl/__init__.py">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="375">
+                    <state relative-caret-position="650">
                       <caret line="31" column="38" selection-start-line="31" selection-start-column="38" selection-end-line="31" selection-end-column="38" />
                       <folding>
                         <element signature="e#354#387#0" expanded="true" />
@@ -122,13 +122,13 @@
               <file leaf-file-name="fitWorker.py" pinned="false" current-in-tab="true">
                 <entry file="file://$PROJECT_DIR$/StandaloneWorker/fitWorker.py">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="432">
-                      <caret line="148" column="31" selection-start-line="148" selection-start-column="31" selection-end-line="148" selection-end-column="31" />
+                    <state relative-caret-position="832">
+                      <caret line="165" column="0" selection-start-line="165" selection-start-column="0" selection-end-line="165" selection-end-column="0" />
                       <folding>
                         <element signature="e#1315#1337#0" expanded="true" />
                         <element signature="e#1515#2366#0" expanded="true" />
                         <element signature="e#2874#2915#0" expanded="true" />
-                        <element signature="e#4248#4302#0" expanded="true" />
+                        <element signature="e#3427#3471#0" expanded="true" />
                       </folding>
                     </state>
                   </provider>
@@ -153,13 +153,17 @@
           <file leaf-file-name="testWorker.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/testWorker.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="539">
-                  <caret line="216" column="15" selection-start-line="216" selection-start-column="15" selection-end-line="216" selection-end-column="15" />
+                <state relative-caret-position="389">
+                  <caret line="210" column="14" selection-start-line="210" selection-start-column="14" selection-end-line="210" selection-end-column="14" />
                   <folding>
                     <element signature="e#0#58#1" expanded="true" />
                     <element signature="e#452#914#0" expanded="true" />
                     <element signature="e#942#974#0" expanded="true" />
                     <element signature="e#2561#2579#0" expanded="true" />
+                    <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
+                    <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
+                    <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
+                    <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
                   </folding>
                 </state>
               </provider>
@@ -168,7 +172,7 @@
           <file leaf-file-name="_context.py" pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/clip/cl/_context.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="500">
+                <state relative-caret-position="550">
                   <caret line="47" column="28" selection-start-line="47" selection-start-column="28" selection-end-line="47" selection-end-column="28" />
                   <folding>
                     <element signature="e#225#246#0" expanded="true" />
@@ -215,8 +219,19 @@
       </list>
     </option>
   </component>
+  <component name="Git.Rebase.Settings">
+    <option name="ONTO" value="refs/remotes/origin/master" />
+  </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <push-targets>
+      <push-target-info repo="$PROJECT_DIR$" source="local-branch" target-remote="origin" target-branch="master" />
+    </push-targets>
+  </component>
+  <component name="GithubProjectSettings">
+    <option name="CREATE_PULL_REQUEST_DEFAULT_BRANCH" value="master" />
+    <option name="CREATE_PULL_REQUEST_DEFAULT_REPO_USER" value="WilliamRo" />
+    <option name="CREATE_PULL_REQUEST_DEFAULT_REPO_NAME" value="CLipPYME" />
   </component>
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
@@ -345,7 +360,7 @@
     <ConfirmationsSetting value="0" id="Remove" />
   </component>
   <component name="ProjectView">
-    <navigator currentView="ProjectPane" proportions="" version="1">
+    <navigator proportions="" version="1">
       <flattenPackages />
       <showMembers />
       <showModules />
@@ -358,47 +373,10 @@
       <manualOrder />
       <foldersAlwaysOnTop value="true" />
     </navigator>
-    <panes>
-      <pane id="ProjectPane">
-        <subPane>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="CLipPYME" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="CLipPYME" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="CLipPYME" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-          <PATH>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="CLipPYME" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="CLipPYME" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-            <PATH_ELEMENT>
-              <option name="myItemId" value="StandaloneWorker" />
-              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
-            </PATH_ELEMENT>
-          </PATH>
-        </subPane>
-      </pane>
-      <pane id="Scope" />
-      <pane id="Scratches" />
-    </panes>
+    <panes />
   </component>
   <component name="PropertiesComponent">
-    <property name="settings.editor.selected.configurable" value="vcs.Git" />
+    <property name="settings.editor.selected.configurable" value="preferences.keymap" />
     <property name="settings.editor.splitter.proportion" value="0.2" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/.." />
@@ -861,21 +839,28 @@
       <option name="project" value="LOCAL" />
       <updated>1466150507583</updated>
     </task>
-    <task id="LOCAL-00017" summary="6th Commit">
-      <created>1466151470637</created>
+    <task id="LOCAL-00017" summary="Te  st">
+      <created>1466153432388</created>
       <option name="number" value="00017" />
       <option name="presentableId" value="LOCAL-00017" />
       <option name="project" value="LOCAL" />
-      <updated>1466151470637</updated>
+      <updated>1466153432388</updated>
     </task>
-    <task id="LOCAL-00018" summary="7th Commit">
-      <created>1466152236572</created>
+    <task id="LOCAL-00018" summary="x test">
+      <created>1466153701340</created>
       <option name="number" value="00018" />
       <option name="presentableId" value="LOCAL-00018" />
       <option name="project" value="LOCAL" />
-      <updated>1466152236572</updated>
+      <updated>1466153701340</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="Wm: 10th commit">
+      <created>1466156471011</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1466156471011</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TodoView" selected-index="1">
@@ -893,7 +878,6 @@
     <layout>
       <window_info id="Project" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="false" show_stripe_button="true" weight="0.16770834" sideWeight="0.49562362" order="4" side_tool="false" content_ui="combo" x="1535" y="148" width="340" height="801" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="false" show_stripe_button="true" weight="0.32932165" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" x="693" y="127" width="594" height="748" />
-      <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="true" internal_type="DOCKED" type="FLOATING" visible="false" show_stripe_button="true" weight="0.49895832" sideWeight="0.50437635" order="12" side_tool="false" content_ui="tabs" x="40" y="119" width="624" height="859" />
@@ -904,6 +888,7 @@
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.1578125" sideWeight="0.5" order="0" side_tool="true" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="false" show_stripe_button="true" weight="0.39934355" sideWeight="0.5" order="11" side_tool="false" content_ui="tabs" x="-1118" y="404" width="979" height="597" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
+      <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39934355" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
@@ -964,9 +949,10 @@
     <MESSAGE value="None" />
     <MESSAGE value="Merge test" />
     <MESSAGE value="Add test" />
-    <MESSAGE value="6th Commit" />
-    <MESSAGE value="7th Commit" />
-    <option name="LAST_COMMIT_MESSAGE" value="7th Commit" />
+    <MESSAGE value="Te  st" />
+    <MESSAGE value="x test" />
+    <MESSAGE value="Wm: 10th commit" />
+    <option name="LAST_COMMIT_MESSAGE" value="Wm: 10th commit" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -984,7 +970,7 @@
           </properties>
         </breakpoint>
       </default-breakpoints>
-      <option name="time" value="52" />
+      <option name="time" value="53" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -998,6 +984,10 @@
             <element signature="e#452#914#0" expanded="true" />
             <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
+            <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
+            <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
+            <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
+            <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
           </folding>
         </state>
       </provider>
@@ -1031,6 +1021,10 @@
             <element signature="e#452#914#0" expanded="true" />
             <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
+            <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
+            <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
+            <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
+            <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
           </folding>
         </state>
       </provider>
@@ -1078,6 +1072,10 @@
             <element signature="e#452#914#0" expanded="true" />
             <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
+            <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
+            <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
+            <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
+            <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
           </folding>
         </state>
       </provider>
@@ -1111,6 +1109,10 @@
             <element signature="e#452#914#0" expanded="true" />
             <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
+            <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
+            <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
+            <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
+            <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
           </folding>
         </state>
       </provider>
@@ -1258,7 +1260,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/clip/cl/_buffer.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="425">
+        <state relative-caret-position="475">
           <caret line="23" column="8" selection-start-line="23" selection-start-column="8" selection-end-line="23" selection-end-column="8" />
           <folding>
             <element signature="e#225#264#0" expanded="true" />
@@ -1279,7 +1281,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/clip/cl/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="375">
+        <state relative-caret-position="650">
           <caret line="31" column="38" selection-start-line="31" selection-start-column="38" selection-end-line="31" selection-end-column="38" />
           <folding>
             <element signature="e#354#387#0" expanded="true" />
@@ -1359,7 +1361,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/clip/cl/_context.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="500">
+        <state relative-caret-position="550">
           <caret line="47" column="28" selection-start-line="47" selection-start-column="28" selection-end-line="47" selection-end-column="28" />
           <folding>
             <element signature="e#225#246#0" expanded="true" />
@@ -1376,24 +1378,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="25">
           <caret line="9" column="49" selection-start-line="9" selection-start-column="49" selection-end-line="9" selection-end-column="49" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/testCL.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="675">
-          <caret line="33" column="25" selection-start-line="33" selection-start-column="25" selection-end-line="33" selection-end-column="25" />
           <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/clip/dip/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="550">
-          <caret line="22" column="15" selection-start-line="22" selection-start-column="15" selection-end-line="22" selection-end-column="15" />
-          <folding>
-            <element signature="e#226#235#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -1417,28 +1402,50 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/testCL.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="675">
+          <caret line="33" column="25" selection-start-line="33" selection-start-column="25" selection-end-line="33" selection-end-column="25" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/clip/dip/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="550">
+          <caret line="22" column="15" selection-start-line="22" selection-start-column="15" selection-end-line="22" selection-end-column="15" />
+          <folding>
+            <element signature="e#226#235#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/StandaloneWorker/fitWorker.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="432">
-          <caret line="148" column="31" selection-start-line="148" selection-start-column="31" selection-end-line="148" selection-end-column="31" />
+        <state relative-caret-position="832">
+          <caret line="165" column="0" selection-start-line="165" selection-start-column="0" selection-end-line="165" selection-end-column="0" />
           <folding>
             <element signature="e#1315#1337#0" expanded="true" />
             <element signature="e#1515#2366#0" expanded="true" />
             <element signature="e#2874#2915#0" expanded="true" />
-            <element signature="e#4248#4302#0" expanded="true" />
+            <element signature="e#3427#3471#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/testWorker.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="539">
-          <caret line="216" column="15" selection-start-line="216" selection-start-column="15" selection-end-line="216" selection-end-column="15" />
+        <state relative-caret-position="389">
+          <caret line="210" column="14" selection-start-line="210" selection-start-column="14" selection-end-line="210" selection-end-column="14" />
           <folding>
             <element signature="e#0#58#1" expanded="true" />
             <element signature="e#452#914#0" expanded="true" />
             <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
+            <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
+            <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
+            <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
+            <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
           </folding>
         </state>
       </provider>
