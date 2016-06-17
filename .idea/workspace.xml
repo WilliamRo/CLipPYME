@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="057f8f5b-e9fa-4155-92a8-2356eae15e39" name="Default" comment="Wm: 10th commit">
+    <list default="true" id="057f8f5b-e9fa-4155-92a8-2356eae15e39" name="Default" comment="None">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/testWorker.py" afterPath="$PROJECT_DIR$/testWorker.py" />
     </list>
     <ignored path="CLipPYME.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -43,8 +44,8 @@
               <file leaf-file-name="LatGaussFit.py" pinned="false" current-in-tab="true">
                 <entry file="file://$PROJECT_DIR$/clip/dip/LatGaussFit.py">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="769">
-                      <caret line="240" column="0" selection-start-line="240" selection-start-column="0" selection-end-line="241" selection-end-column="10" />
+                    <state relative-caret-position="219">
+                      <caret line="218" column="0" selection-start-line="218" selection-start-column="0" selection-end-line="218" selection-end-column="0" />
                       <folding>
                         <element signature="e#225#245#0" expanded="true" />
                         <element signature="e#1914#1991#1" expanded="true" />
@@ -54,9 +55,10 @@
                         <element signature="e#4496#4518#0" expanded="true" />
                         <element signature="e#4576#7030#0" expanded="true" />
                         <element signature="e#4676#4690#0" expanded="true" />
-                        <element signature="e#7074#7100#0" expanded="true" />
                         <element signature="e#7131#7635#0" expanded="true" />
+                        <element signature="e#7669#7686#0" expanded="true" />
                         <element signature="e#7789#7992#0" expanded="true" />
+                        <element signature="e#8052#8605#0" expanded="true" />
                       </folding>
                     </state>
                   </provider>
@@ -109,8 +111,8 @@
               <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
                 <entry file="file://$PROJECT_DIR$/clip/dip/__init__.py">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="550">
-                      <caret line="22" column="15" selection-start-line="22" selection-start-column="15" selection-end-line="22" selection-end-column="15" />
+                    <state relative-caret-position="350">
+                      <caret line="14" column="0" selection-start-line="14" selection-start-column="0" selection-end-line="14" selection-end-column="0" />
                       <folding>
                         <element signature="e#226#235#0" expanded="true" />
                       </folding>
@@ -121,13 +123,16 @@
               <file leaf-file-name="fitWorker.py" pinned="false" current-in-tab="true">
                 <entry file="file://$PROJECT_DIR$/StandaloneWorker/fitWorker.py">
                   <provider selected="true" editor-type-id="text-editor">
-                    <state relative-caret-position="832">
-                      <caret line="165" column="0" selection-start-line="165" selection-start-column="0" selection-end-line="165" selection-end-column="0" />
+                    <state relative-caret-position="564">
+                      <caret line="187" column="0" selection-start-line="187" selection-start-column="0" selection-end-line="187" selection-end-column="0" />
                       <folding>
                         <element signature="e#1315#1337#0" expanded="true" />
                         <element signature="e#1515#2366#0" expanded="true" />
+                        <element signature="e#2403#2425#0" expanded="true" />
+                        <element signature="e#2472#5474#0" expanded="true" />
                         <element signature="e#2874#2915#0" expanded="true" />
                         <element signature="e#3427#3471#0" expanded="true" />
+                        <element signature="e#4248#4302#0" expanded="true" />
                       </folding>
                     </state>
                   </provider>
@@ -152,17 +157,13 @@
           <file leaf-file-name="testWorker.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/testWorker.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="389">
-                  <caret line="210" column="14" selection-start-line="210" selection-start-column="14" selection-end-line="210" selection-end-column="14" />
+                <state relative-caret-position="164">
+                  <caret line="202" column="40" selection-start-line="202" selection-start-column="40" selection-end-line="202" selection-end-column="40" />
                   <folding>
                     <element signature="e#0#58#1" expanded="true" />
                     <element signature="e#452#914#0" expanded="true" />
                     <element signature="e#942#974#0" expanded="true" />
                     <element signature="e#2561#2579#0" expanded="true" />
-                    <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
-                    <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
-                    <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
-                    <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
                   </folding>
                 </state>
               </provider>
@@ -218,19 +219,10 @@
       </list>
     </option>
   </component>
-  <component name="Git.Rebase.Settings">
-    <option name="ONTO" value="refs/remotes/origin/master" />
-  </component>
   <component name="Git.Settings">
+    <option name="UPDATE_TYPE" value="MERGE" />
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
-    <push-targets>
-      <push-target-info repo="$PROJECT_DIR$" source="local-branch" target-remote="origin" target-branch="master" />
-    </push-targets>
-  </component>
-  <component name="GithubProjectSettings">
-    <option name="CREATE_PULL_REQUEST_DEFAULT_BRANCH" value="master" />
-    <option name="CREATE_PULL_REQUEST_DEFAULT_REPO_USER" value="WilliamRo" />
-    <option name="CREATE_PULL_REQUEST_DEFAULT_REPO_NAME" value="CLipPYME" />
+    <option name="RESET_MODE" value="HARD" />
   </component>
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
@@ -359,7 +351,7 @@
     <ConfirmationsSetting value="0" id="Remove" />
   </component>
   <component name="ProjectView">
-    <navigator proportions="" version="1">
+    <navigator currentView="ProjectPane" proportions="" version="1">
       <flattenPackages />
       <showMembers />
       <showModules />
@@ -372,29 +364,131 @@
       <manualOrder />
       <foldersAlwaysOnTop value="true" />
     </navigator>
-    <panes />
+    <panes>
+      <pane id="Scratches" />
+      <pane id="ProjectPane">
+        <subPane />
+      </pane>
+      <pane id="Scope" />
+    </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="settings.editor.selected.configurable" value="preferences.keymap" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
     <property name="settings.editor.splitter.proportion" value="0.2" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$/.." />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth0" value="45" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder0" value="0" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth1" value="59" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder1" value="1" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth2" value="60" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder2" value="2" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatWidth3" value="515" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_flatOrder3" value="3" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeWidth0" value="45" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder0" value="0" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeWidth1" value="59" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder1" value="1" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeWidth2" value="60" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder2" value="2" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeWidth3" value="515" />
-    <property name="FileHistory.git4idea.history.GitHistoryProvider_treeOrder3" value="3" />
+  </component>
+  <component name="RestoreUpdateTree" date="Moments ago" ActionInfo="_Update">
+    <UpdatedFiles>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Updated from server" />
+        <option name="myStatusName" value="Changed on server" />
+        <option name="mySupportsDeletion" value="false" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="CHANGED_ON_SERVER" />
+        <FILE-GROUP>
+          <option name="myUpdateName" value="Updated" />
+          <option name="myStatusName" value="Changed" />
+          <option name="mySupportsDeletion" value="false" />
+          <option name="myCanBeAbsent" value="false" />
+          <option name="myId" value="UPDATED" />
+          <PATH vcs="Git" revision="">$PROJECT_DIR$/StandaloneWorker/fitWorker.py</PATH>
+          <PATH vcs="Git" revision="">$PROJECT_DIR$/testWorker.py</PATH>
+        </FILE-GROUP>
+        <FILE-GROUP>
+          <option name="myUpdateName" value="Created" />
+          <option name="myStatusName" value="Created" />
+          <option name="mySupportsDeletion" value="false" />
+          <option name="myCanBeAbsent" value="false" />
+          <option name="myId" value="CREATED" />
+        </FILE-GROUP>
+        <FILE-GROUP>
+          <option name="myUpdateName" value="Deleted" />
+          <option name="myStatusName" value="Deleted" />
+          <option name="mySupportsDeletion" value="false" />
+          <option name="myCanBeAbsent" value="true" />
+          <option name="myId" value="REMOVED_FROM_REPOSITORY" />
+          <PATH vcs="Git" revision="">$PROJECT_DIR$/StandaloneWorker/__init__.pyc</PATH>
+        </FILE-GROUP>
+        <FILE-GROUP>
+          <option name="myUpdateName" value="Restored" />
+          <option name="myStatusName" value="Will be restored" />
+          <option name="mySupportsDeletion" value="false" />
+          <option name="myCanBeAbsent" value="false" />
+          <option name="myId" value="RESTORED" />
+        </FILE-GROUP>
+      </FILE-GROUP>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Modified" />
+        <option name="myStatusName" value="Modified" />
+        <option name="mySupportsDeletion" value="false" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="MODIFIED" />
+      </FILE-GROUP>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Skipped" />
+        <option name="myStatusName" value="Skipped" />
+        <option name="mySupportsDeletion" value="false" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="SKIPPED" />
+      </FILE-GROUP>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Merged with conflicts" />
+        <option name="myStatusName" value="Will be merged with conflicts" />
+        <option name="mySupportsDeletion" value="false" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="MERGED_WITH_CONFLICTS" />
+      </FILE-GROUP>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Merged with tree conflicts" />
+        <option name="myStatusName" value="Merged with tree conflicts" />
+        <option name="mySupportsDeletion" value="false" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="MERGED_WITH_TREE_CONFLICT" />
+      </FILE-GROUP>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Merged with property conflicts" />
+        <option name="myStatusName" value="Will be merged with property conflicts" />
+        <option name="mySupportsDeletion" value="false" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="MERGED_WITH_PROPERTY_CONFLICT" />
+      </FILE-GROUP>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Merged" />
+        <option name="myStatusName" value="Will be merged" />
+        <option name="mySupportsDeletion" value="false" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="MERGED" />
+      </FILE-GROUP>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Not in repository" />
+        <option name="myStatusName" value="Not in repository" />
+        <option name="mySupportsDeletion" value="true" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="UNKNOWN" />
+      </FILE-GROUP>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Locally added" />
+        <option name="myStatusName" value="Locally added" />
+        <option name="mySupportsDeletion" value="false" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="LOCALLY_ADDED" />
+      </FILE-GROUP>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Locally removed" />
+        <option name="myStatusName" value="Locally removed" />
+        <option name="mySupportsDeletion" value="false" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="LOCALLY_REMOVED" />
+      </FILE-GROUP>
+      <FILE-GROUP>
+        <option name="myUpdateName" value="Switched" />
+        <option name="myStatusName" value="Switched" />
+        <option name="mySupportsDeletion" value="false" />
+        <option name="myCanBeAbsent" value="false" />
+        <option name="myId" value="SWITCHED" />
+      </FILE-GROUP>
+    </UpdatedFiles>
   </component>
   <component name="RunManager" selected="Python.__init__">
     <configuration default="false" name="testWorker" type="PythonConfigurationType" factoryName="Python" temporary="true">
@@ -824,49 +918,7 @@
       <option name="project" value="LOCAL" />
       <updated>1466141940967</updated>
     </task>
-    <task id="LOCAL-00015" summary="Merge test">
-      <created>1466149915948</created>
-      <option name="number" value="00015" />
-      <option name="presentableId" value="LOCAL-00015" />
-      <option name="project" value="LOCAL" />
-      <updated>1466149915948</updated>
-    </task>
-    <task id="LOCAL-00016" summary="Add test">
-      <created>1466150507583</created>
-      <option name="number" value="00016" />
-      <option name="presentableId" value="LOCAL-00016" />
-      <option name="project" value="LOCAL" />
-      <updated>1466150507583</updated>
-    </task>
-    <task id="LOCAL-00017" summary="Te  st">
-      <created>1466153432388</created>
-      <option name="number" value="00017" />
-      <option name="presentableId" value="LOCAL-00017" />
-      <option name="project" value="LOCAL" />
-      <updated>1466153432388</updated>
-    </task>
-    <task id="LOCAL-00018" summary="x test">
-      <created>1466153701340</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
-      <option name="project" value="LOCAL" />
-      <updated>1466153701340</updated>
-    </task>
-    <task id="LOCAL-00019" summary="Wm: 10th commit">
-      <created>1466156471011</created>
-      <option name="number" value="00019" />
-      <option name="presentableId" value="LOCAL-00019" />
-      <option name="project" value="LOCAL" />
-      <updated>1466156471011</updated>
-    </task>
-    <task id="LOCAL-00020" summary="Wm: 10th commit">
-      <created>1466156868922</created>
-      <option name="number" value="00020" />
-      <option name="presentableId" value="LOCAL-00020" />
-      <option name="project" value="LOCAL" />
-      <updated>1466156868922</updated>
-    </task>
-    <option name="localTasksCounter" value="21" />
+    <option name="localTasksCounter" value="15" />
     <servers />
   </component>
   <component name="TodoView" selected-index="1">
@@ -887,21 +939,21 @@
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="true" internal_type="DOCKED" type="FLOATING" visible="false" show_stripe_button="true" weight="0.49895832" sideWeight="0.50437635" order="12" side_tool="false" content_ui="tabs" x="40" y="119" width="624" height="859" />
-      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="false" show_stripe_button="true" weight="0.74070024" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" x="718" y="233" width="721" height="724" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="false" show_stripe_button="true" weight="0.9978118" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" x="-865" y="68" width="815" height="947" />
+      <window_info id="Version Control" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="true" show_stripe_button="true" weight="0.74070024" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" x="63" y="143" width="721" height="724" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32932165" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.1578125" sideWeight="0.5" order="0" side_tool="true" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="false" show_stripe_button="true" weight="0.39934355" sideWeight="0.5" order="11" side_tool="false" content_ui="tabs" x="-1118" y="404" width="979" height="597" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39934355" sideWeight="0.5" order="9" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="true" show_stripe_button="true" weight="0.9978118" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" x="-865" y="68" width="815" height="947" />
       <window_info id="Thumbnails" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32932165" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="3" side_tool="false" content_ui="combo" />
       <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32275712" sideWeight="0.5" order="6" side_tool="true" content_ui="tabs" x="-6" y="329" width="1932" height="342" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="FLOATING" visible="true" show_stripe_button="true" weight="0.39934355" sideWeight="0.5" order="11" side_tool="false" content_ui="tabs" x="-1118" y="404" width="979" height="597" />
     </layout>
     <layout-to-restore>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
@@ -953,12 +1005,7 @@
     <MESSAGE value="Refactored clip.cl" />
     <MESSAGE value="cl.dip.LatGaussFit.py: initialized cl mem obj in constructor" />
     <MESSAGE value="None" />
-    <MESSAGE value="Merge test" />
-    <MESSAGE value="Add test" />
-    <MESSAGE value="Te  st" />
-    <MESSAGE value="x test" />
-    <MESSAGE value="Wm: 10th commit" />
-    <option name="LAST_COMMIT_MESSAGE" value="Wm: 10th commit" />
+    <option name="LAST_COMMIT_MESSAGE" value="None" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -976,7 +1023,7 @@
           </properties>
         </breakpoint>
       </default-breakpoints>
-      <option name="time" value="53" />
+      <option name="time" value="52" />
     </breakpoint-manager>
     <watches-manager />
   </component>
@@ -990,10 +1037,6 @@
             <element signature="e#452#914#0" expanded="true" />
             <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
-            <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
-            <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
-            <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
-            <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
           </folding>
         </state>
       </provider>
@@ -1011,9 +1054,10 @@
             <element signature="e#4496#4518#0" expanded="true" />
             <element signature="e#4576#7030#0" expanded="true" />
             <element signature="e#4676#4690#0" expanded="true" />
-            <element signature="e#7074#7100#0" expanded="true" />
             <element signature="e#7131#7635#0" expanded="true" />
+            <element signature="e#7669#7686#0" expanded="true" />
             <element signature="e#7789#7992#0" expanded="true" />
+            <element signature="e#8052#8605#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -1027,10 +1071,6 @@
             <element signature="e#452#914#0" expanded="true" />
             <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
-            <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
-            <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
-            <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
-            <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
           </folding>
         </state>
       </provider>
@@ -1062,9 +1102,10 @@
             <element signature="e#4496#4518#0" expanded="true" />
             <element signature="e#4576#7030#0" expanded="true" />
             <element signature="e#4676#4690#0" expanded="true" />
-            <element signature="e#7074#7100#0" expanded="true" />
             <element signature="e#7131#7635#0" expanded="true" />
+            <element signature="e#7669#7686#0" expanded="true" />
             <element signature="e#7789#7992#0" expanded="true" />
+            <element signature="e#8052#8605#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -1078,10 +1119,6 @@
             <element signature="e#452#914#0" expanded="true" />
             <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
-            <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
-            <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
-            <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
-            <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
           </folding>
         </state>
       </provider>
@@ -1099,9 +1136,10 @@
             <element signature="e#4496#4518#0" expanded="true" />
             <element signature="e#4576#7030#0" expanded="true" />
             <element signature="e#4676#4690#0" expanded="true" />
-            <element signature="e#7074#7100#0" expanded="true" />
             <element signature="e#7131#7635#0" expanded="true" />
+            <element signature="e#7669#7686#0" expanded="true" />
             <element signature="e#7789#7992#0" expanded="true" />
+            <element signature="e#8052#8605#0" expanded="true" />
           </folding>
         </state>
       </provider>
@@ -1115,10 +1153,6 @@
             <element signature="e#452#914#0" expanded="true" />
             <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
-            <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
-            <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
-            <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
-            <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
           </folding>
         </state>
       </provider>
@@ -1300,6 +1334,14 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/testCL.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="675">
+          <caret line="33" column="25" selection-start-line="33" selection-start-column="25" selection-end-line="33" selection-end-column="25" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/PYME/Analysis/FitFactories/LatGaussFitFR.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="269">
@@ -1382,16 +1424,26 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/.idea/workspace.xml">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="25">
-          <caret line="9" column="49" selection-start-line="9" selection-start-column="49" selection-end-line="9" selection-end-column="49" />
+        <state relative-caret-position="75">
+          <caret line="11" column="25" selection-start-line="11" selection-start-column="25" selection-end-line="11" selection-end-column="25" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/clip/dip/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="350">
+          <caret line="14" column="0" selection-start-line="14" selection-start-column="0" selection-end-line="14" selection-end-column="0" />
+          <folding>
+            <element signature="e#226#235#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/clip/dip/LatGaussFit.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="769">
-          <caret line="240" column="0" selection-start-line="240" selection-start-column="0" selection-end-line="241" selection-end-column="10" />
+        <state relative-caret-position="219">
+          <caret line="218" column="0" selection-start-line="218" selection-start-column="0" selection-end-line="218" selection-end-column="0" />
           <folding>
             <element signature="e#225#245#0" expanded="true" />
             <element signature="e#1914#1991#1" expanded="true" />
@@ -1401,57 +1453,39 @@
             <element signature="e#4496#4518#0" expanded="true" />
             <element signature="e#4576#7030#0" expanded="true" />
             <element signature="e#4676#4690#0" expanded="true" />
-            <element signature="e#7074#7100#0" expanded="true" />
             <element signature="e#7131#7635#0" expanded="true" />
+            <element signature="e#7669#7686#0" expanded="true" />
             <element signature="e#7789#7992#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/testCL.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="675">
-          <caret line="33" column="25" selection-start-line="33" selection-start-column="25" selection-end-line="33" selection-end-column="25" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/clip/dip/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="550">
-          <caret line="22" column="15" selection-start-line="22" selection-start-column="15" selection-end-line="22" selection-end-column="15" />
-          <folding>
-            <element signature="e#226#235#0" expanded="true" />
+            <element signature="e#8052#8605#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/StandaloneWorker/fitWorker.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="832">
-          <caret line="165" column="0" selection-start-line="165" selection-start-column="0" selection-end-line="165" selection-end-column="0" />
+        <state relative-caret-position="564">
+          <caret line="187" column="0" selection-start-line="187" selection-start-column="0" selection-end-line="187" selection-end-column="0" />
           <folding>
             <element signature="e#1315#1337#0" expanded="true" />
             <element signature="e#1515#2366#0" expanded="true" />
+            <element signature="e#2403#2425#0" expanded="true" />
+            <element signature="e#2472#5474#0" expanded="true" />
             <element signature="e#2874#2915#0" expanded="true" />
             <element signature="e#3427#3471#0" expanded="true" />
+            <element signature="e#4248#4302#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/testWorker.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="389">
-          <caret line="210" column="14" selection-start-line="210" selection-start-column="14" selection-end-line="210" selection-end-column="14" />
+        <state relative-caret-position="164">
+          <caret line="202" column="40" selection-start-line="202" selection-start-column="40" selection-end-line="202" selection-end-column="40" />
           <folding>
             <element signature="e#0#58#1" expanded="true" />
             <element signature="e#452#914#0" expanded="true" />
             <element signature="e#942#974#0" expanded="true" />
             <element signature="e#2561#2579#0" expanded="true" />
-            <marker date="1466156453231" expanded="false" signature="59:357" ph="import ..." />
-            <marker date="1466156453231" expanded="false" signature="391:940" ph=": Utilities" />
-            <marker date="1466156453231" expanded="false" signature="1720:2559" ph=": Prepare for fitting" />
-            <marker date="1466156453231" expanded="false" signature="3397:4271" ph=": Verify : Check standard results" />
           </folding>
         </state>
       </provider>
