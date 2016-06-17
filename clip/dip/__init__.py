@@ -41,7 +41,13 @@ print('-=> dip.ip initialized')
 
 if __name__ == '__main__':
     import numpy as np
-    cl.program.cl_test((3, 2, 1), (np.int32(8),))
+
+    x = np.zeros((2, 2))
+    buf = cl.create_buffer(cl.mem_access_mode.READ_WRITE,
+                           hostbuf=x, host_ptr_mode=
+                           cl.mem_host_ptr_mode.COPY_HOST_PTR)
+    cl.program.test_2(x.shape, (buf,))
+    # cl.program.cl_test((2, 2, 1), (np.int32(8),))
 
 
 # endregion : Self-test

@@ -113,6 +113,10 @@ class GaussianFitFactory:
 
         # region : Initialize data in device
 
+        # TODO
+        '''Use 'data = data - bkg' to save space for data_mean,
+            A (= data.max() - data.min()) in start parameter will be
+            affected'''
         self.data_mean = self.data - self.background
         cl.data = cl.create_buffer(am.READ_ONLY,
                                    hostbuf=self.data_mean,
@@ -155,6 +159,9 @@ class GaussianFitFactory:
 
         # > estimate some start parameters
         # --------------------------------------------------------------
+        # TODO
+        '''Changing A will lead to large delta of final A and sigma'''
+        # A = data_mean.max() - data_mean.min()  # amplitude
         A = data.max() - data.min()  # amplitude
 
         x0 = 1e3 * self.metadata.voxelsize.x * x
