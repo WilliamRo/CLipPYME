@@ -219,6 +219,6 @@ else:
 
 if True and errCount: os.startfile(veriFilename)
 
-# endregion : Verify - 7th t est
+# endregion : Verify - 7th te st
 
 # Add test
