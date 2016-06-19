@@ -5,5 +5,5 @@
 #
 ########################################################################
 
-eps_machine = 1e-16  # TODO: fixed temporarily
+eps_machine = 1e-8  # TODO: use float32 temporarily
 

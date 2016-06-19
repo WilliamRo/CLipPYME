@@ -60,9 +60,9 @@ def jac(func, x, args, fvec, epsfcn):
     m = fvec.size
     # > check fjac and wa
     if fjac is None or fjac.size is not m * n:
-        fjac = np.zeros(m * n, np.float64)
+        fjac = np.zeros(m * n, np.float32)
     if wa is None or wa.size is not m:
-        wa = np.zeros(m, np.float64)
+        wa = np.zeros(m, np.float32)
     # -------------------------------------
     # endregion : Initialize parameters
 

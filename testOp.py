@@ -10,7 +10,7 @@ from clip.op.fdjac2 import jac
 
 
 def f(x, a1, a2):
-    r = np.zeros(3, np.float64)
+    r = np.zeros(3, np.float32)
     r[0] = a1 * x[0] ** 2 + a2 * x[1] ** 3
     r[1] = a1 * x[0] ** 4 + a2 * x[1] ** 5
     r[2] = a1 * x[0] ** 6 + a2 * x[1] ** 7
@@ -18,7 +18,7 @@ def f(x, a1, a2):
 
 
 def std_jac(x, a1, a2):
-    jac = np.zeros(6, np.float64)
+    jac = np.zeros(6, np.float32)
     for j in range(3):
         i = 2 * j + 2
         jac[j] = i * a1 * x[0] ** (i - 1)
