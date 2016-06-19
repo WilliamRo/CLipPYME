@@ -9,6 +9,7 @@ import numpy as np
 from scipy.linalg import norm as enorm
 
 import utility
+from fdjac2 import jac
 
 # region : Module parameters
 
@@ -25,9 +26,10 @@ p0001 = 1e-4
 
 eps_machine = utility.eps_machine
 
+
 # endregion : Module parameters
 
-def lmdif(func, x0, args=(), full_output=0,
+def lmdif(func, x, args=(), full_output=0,
           col_deriv=0, ftol=1.49012e-8, xtol=1.49012e-8,
           gtol=0.0, maxfev=0, epsfcn=None, factor=100, diag=None):
     """
@@ -43,7 +45,7 @@ def lmdif(func, x0, args=(), full_output=0,
         should take at least one (possibly length N vector) argument and
         returns M floating point numbers. It must not return NaNs or
         fitting might fail.
-    x0: ndarray
+    x: ndarray
         The starting estimate for the minimization.
     args: tuple, optional
         Any extra arguments to func are placed in this tuple.
@@ -150,14 +152,14 @@ def lmdif(func, x0, args=(), full_output=0,
 
     # > evaluate the function at the starting point and calculate
     # its norm
-    fvec = func(x0, args)
+    fvec = func(x, args)
     fnorm = enorm(fvec)
 
     # region : initialize other parameters
     # -----------------------------------------
     nfev = 1
     m = fvec.size
-    n = x0.size
+    n = x.size
     if m < n:
         raise ValueError('!!! m < n in lmdif')
     # >> check work arrays
@@ -181,7 +183,11 @@ def lmdif(func, x0, args=(), full_output=0,
     # > begin outer loop
     while True:
         # > calculate the jacobian matrix
-        pass
+        fjac = jac(func, x, args, fvec, epsfcn)
+        nfev += n
+
+        # > compute the qr factorization of the jacobian
+        
 
     # endregion : Main loop
 
