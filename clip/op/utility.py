@@ -5,5 +5,5 @@
 #
 ########################################################################
 
-eps_machine = 1e-8  # TODO: use float32 temporarily
+eps_machine = 1e-16  # TODO: use float64 temporarily
 

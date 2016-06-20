@@ -30,7 +30,7 @@ if __name__ == "__main__":
     x = np.random.rand(2)
     a = np.random.rand(2)
     fvec = f(x, a[0], a[1])
-    epsfcn = 0
+    epsfcn = 1e-8
     std_j = std_jac(x, a[0], a[1])
     res_j = jac(f, x, (a[0], a[1]), fvec, epsfcn)
     print(std_j - res_j)

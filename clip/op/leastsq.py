@@ -31,7 +31,7 @@ eps_machine = utility.eps_machine
 
 def lmdif(func, x, args=(), full_output=0,
           col_deriv=0, ftol=1.49012e-8, xtol=1.49012e-8,
-          gtol=0.0, maxfev=0, epsfcn=None, factor=100, diag=None):
+          gtol=0.0, maxfev=0, epsfcn=1e-8, factor=100, diag=None):
     """
     Minimize the sum of the squares of m nonlinear functions in n
         variables by a modification of the levenberg-marquardt
@@ -187,7 +187,6 @@ def lmdif(func, x, args=(), full_output=0,
         nfev += n
 
         # > compute the qr factorization of the jacobian
-        
 
     # endregion : Main loop
 
