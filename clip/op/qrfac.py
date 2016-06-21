@@ -26,42 +26,42 @@ wa = None
 def qr(m, n, a, lda, pivot):
     """
     Uses householder transformations with column pivoting (optional)
-    to compute a qr factorization of the m by n matrix a
+    to compute a QR factorization of the m by n matrix a
 
     Parameters
     ----------
-        m:
+        m: int
             a positive integer input variable set to the number of rows
             of a
-        n:
+        n: int
             a positive integer input variable set to the number of
             columns of a
-        a:
+        a: ndarray
             an m by n array. on input a contains the matrix for which
             the qr factorization is to be computed. on output the
             strict upper trapezoidal part of a contains the strict
             upper trapezoidal part of r, and the lower trapezoidal
             part of a contains a factored form of q (the non-trivial
             elements of the u vectors described above)
-        lda:
+        lda: int
             a positive integer input variable not less than m which
             specifies the leading dimension of the array a
-        pivot:
+        pivot: bool
             a logical input variable. if pivot is set true, then
             column pivoting is enforced. if pivot is set false, then
             no column pivoting is done
 
     Returns
     -------
-        ipvt:
+        ipvt: ndarray
             an integer output array. ipvt defines the permutation
             matrix p such that a*p = q*r. column j of p is column
             ipvt(j) of the identity matrix. if pivot is false, ipvt
             will be set to None
-        rdiag:
+        rdiag: ndarray
             an output array of length n which contains the diagonal
             elements of r
-        acnorm:
+        acnorm: ndarray
             an output array of length n which contains the norms of
             the corresponding columns of the input matrix a. if this
             information is not needed, then acnorm can coincide with

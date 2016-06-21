@@ -31,12 +31,12 @@ def jac(func, x, args, fvec, epsfcn):
         fitting might fail.
     x: ndarray
         an input array of length n
-    args: tuple, optional
+    args: tuple
         Any extra arguments to func are placed in this tuple.
     fvec: ndarray
         an input array of length m which must contain the functions
         evaluated at x
-    epsfcn: float, optional
+    epsfcn: float
         A variable used in determining a suitable step length for the
         forward-difference approximation of the Jacobian (for
         Dfun=None). Normally the actual step length will be
@@ -46,7 +46,7 @@ def jac(func, x, args, fvec, epsfcn):
 
     Returns
     -------
-    fjac:
+    fjac: ndarray
         an output m by n array which contains the approximation to the
         jacobian matrix evaluated at x
 
