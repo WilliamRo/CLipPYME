@@ -1,7 +1,30 @@
 <component name="ProjectDictionaryState">
   <dictionary name="user">
     <words>
+      <w>acnorm</w>
+      <w>ajnorm</w>
+      <w>cholesky</w>
+      <w>diag</w>
+      <w>dxnorm</w>
+      <w>enorm</w>
       <w>evts</w>
+      <w>fjac</w>
+      <w>fnorm</w>
+      <w>fvec</w>
+      <w>gnorm</w>
+      <w>ipvt</w>
+      <w>jacobian</w>
+      <w>laml</w>
+      <w>ldfjac</w>
+      <w>levenberg</w>
+      <w>lmdif</w>
+      <w>marquardt</w>
+      <w>ndarray</w>
+      <w>nfev</w>
+      <w>nsing</w>
+      <w>rdiag</w>
+      <w>sdiag</w>
+      <w>xnorm</w>
     </words>
   </dictionary>
 </component>

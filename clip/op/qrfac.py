@@ -74,13 +74,13 @@ def qr(m, n, a, lda, pivot):
     global p05, eps_machine, ipvt, rdiag, acnorm, wa
 
     if ipvt is None or ipvt.size is not n:
-        ipvt = np.zeros(n, np.float32)
+        ipvt = np.zeros(n, np.int32)
     if rdiag is None or rdiag.size is not n:
-        rdiag = np.zeros(n, np.float32)
+        rdiag = np.zeros(n, utility.data_type)
     if acnorm is None or acnorm.size is not n:
-        acnorm = np.zeros(n, np.float32)
+        acnorm = np.zeros(n, utility.data_type)
     if wa is None or wa.size is not n:
-        wa = np.zeros(n, np.float32)
+        wa = np.zeros(n, utility.data_type)
 
     # ----------------------------------------
     # endregion : Initialize parameters

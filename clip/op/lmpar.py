@@ -9,6 +9,9 @@ import numpy as np
 from scipy.linalg import norm as enorm
 
 from utility import dwarf
+from qrsolv import qr_solve
+
+import utility
 
 # region: Module Parameters
 
@@ -30,19 +33,27 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
      regarded as solving a set of minimization problems:
 
                               2
-          min || J * x + r ||_2     s.t. || D * x || <= Delta
-           x
+          min || J * p + r ||_2     s.t. || D * p || <= Delta
+           p
 
      By introducing a parameter lambda into this sub-problem, the
      constrained optimization problem can be converted to an
      unconstrained optimization problem:
 
              ||   /         J         \       /  r  \  ||
-         min ||  |                    | x +  |      |  ||
-          x  ||  \  sqrt(lambda) * D /       \  0  /   ||
+         min ||  |                    | p +  |      |  ||
+          p  ||  \  sqrt(lambda) * D /       \  0  /   ||
 
      This routine determines the value lambda and as a by-product,
      it gives a nearly exact solution to the minimization problem
+
+     Let a = J, d = D, b = -r, x = p, we denoted the optimization
+     problem as :
+
+             ||   /         a         \       /  b  \  ||
+         min ||  |                    | x -  |      |  ||
+          x  ||  \  sqrt(lambda) * d /       \  0  /   ||
+
 
     Parameters
     ----------
@@ -97,13 +108,13 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
     global wa1, wa2, x, sdiag
 
     if wa1 is None or wa1.size is not n:
-        wa1 = np.zeros(n, np.float32)
+        wa1 = np.zeros(n, utility.data_type)
     if wa2 is None or wa2.size is not n:
-        wa2 = np.zeros(n, np.float32)
+        wa2 = np.zeros(n, utility.data_type)
     if x is None or x.size is not n:
-        x = np.zeros(n, np.float32)
+        x = np.zeros(n, utility.data_type)
     if sdiag is None or sdiag.size is not n:
-        sdiag = np.zeros(n, np.float32)
+        sdiag = np.zeros(n, utility.data_type)
 
     # ----------------------------------------
     # endregion : Initialize parameters
@@ -111,7 +122,7 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
     # region : Compute Gauss-Newton direction
     # ------------------------------------------
     # :: stored in x. If the jacobian is rank-deficient,
-    #    obtain a least squares solution : -(J^t * J)^t * J^t * r
+    #    obtain a least squares solution : -(J^t * J)^-1 * J^t * r
     nsing = n
     for j in range(n):
         wa1[j] = qtb[j]
@@ -162,7 +173,7 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
     # :: f(lam) = || D * x ||_2 - delta
     #    A root-finding Newton's method will be performed
     # :: If the jacobian is not rank deficient, the newton step provides
-    #    a lower bound, laml, for the zero of the function.
+    #    a lower bound, lam_l, for the zero of the function.
     #    Otherwise set this bound to zero
     lam_l = 0.0
     if nsing >= n:
@@ -215,29 +226,52 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
         for j in range(n):
             wa1[j] = temp * diag[j]
 
+        qr_solve(n, r, ldr, ipvt, wa1, qtb, x, sdiag)
+        for j in range(n):
+            wa2[j] = diag[j] * x[j]
+        dxnorm = enorm(wa2)
+        temp = fp
+        fp = dxnorm - delta
+
+        # > if the function is small enough, accept the current value
+        #   of lam. also test for the exceptional cases where lam_l
+        #   is zero or the number of iterations has reached 10
+        if np.abs(fp) <= p1 * delta \
+                or (lam_l == 0.0 and fp <= temp and temp < 0.0) \
+                or iter is 10:
+            return [lam, x, sdiag]
+
+        # > compute the newton correction
+        # ::
+        # ::            / ||d*x|| \2  ||d*x|| - delta
+        # ::   lam_c = | -------- |  -----------------
+        # ::            \  ||y|| /         delta
+        # ::     t
+        # ::    r * y = x, fp = ||d*x|| - delta
+        for j in range(n):
+            l = ipvt[j] - 1
+            wa1[j] = diag[l] * (wa2[l] / dxnorm)
+        for j in range(n):
+            wa1[j] /= sdiag[j]
+            temp = wa1[j]
+            if n > j + 1:
+                for i in range(j + 1, n):
+                    wa1[i] -= r[i + j * ldr] * temp
+
+        temp = enorm(wa1)
+        lam_c = fp / delta / temp / temp
+
+        # > depending on the sign of the function, update lam_l or lam_u
+        if fp > 0.0:
+            lam_l = max(lam_l, lam)
+        if fp < 0.0:
+            lam_u = min(lam_u, lam)
+
+        # > compute an improved estimate for lam
+        d1 = lam_l
+        d2 = lam + lam_c
+        lam = max(d1, d2)
+
     # endregion : Iteration
 
     return [lam, x, sdiag]
-
-    """
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    """

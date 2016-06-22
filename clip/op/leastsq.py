@@ -6,12 +6,17 @@
 ########################################################################
 
 import numpy as np
+from numpy import (atleast_1d, dot, take, triu, shape, eye,
+                   transpose, zeros, product, greater, array,
+                   all, where, isscalar, asarray, inf, abs,
+                   finfo, issubdtype, dtype)
 from scipy.linalg import norm as enorm
 
 import utility
 import qrfac
 from fdjac2 import jac
 from qrfac import qr
+from lmpar import lm_lambda
 
 # region : Module parameters
 
@@ -130,6 +135,11 @@ def lmdif(func, x, args=(), full_output=0,
 
     global eps_machine, wa4, qtf
     global p1, p5, p25, p75, p0001
+    ier = 0
+
+    x = np.asarray(x).flatten()
+    if not isinstance(args, tuple):
+        args = (args,)
 
     if diag is None:
         mode = 1
@@ -140,8 +150,7 @@ def lmdif(func, x, args=(), full_output=0,
 
     # region : Check the input parameters for errors
 
-    if ftol < 0. or xtol < 0. or gtol < 0. or maxfev <= 0 \
-            or factor <= 0:
+    if ftol < 0. or xtol < 0. or gtol < 0. or factor <= 0:
         raise ValueError('!!! Some input parameters for lmdif ' +
                          'are illegal')
 
@@ -156,7 +165,7 @@ def lmdif(func, x, args=(), full_output=0,
 
     # > evaluate the function at the starting point and calculate
     # its norm
-    fvec = func(x, args)
+    fvec = func(x, *args)
     fnorm = enorm(fvec)
 
     # region : initialize other parameters
@@ -167,11 +176,13 @@ def lmdif(func, x, args=(), full_output=0,
     ldfjac = m
     if m < n:
         raise ValueError('!!! m < n in lmdif')
+    if maxfev <= 0:
+        maxfev = 200 * (n + 1)
     # > check wa4 and qtf
     if wa4 is None or wa4.size is not m:
-        wa4 = np.zeros(m, np.float32)
+        wa4 = np.zeros(m, utility.data_type)
     if qtf is None or qtf.size is not n:
-        qtf = np.zeros(n, np.float32)
+        qtf = np.zeros(n, utility.data_type)
     # ------------------------------------------
     # endregion : initialize other parameters
 
@@ -180,7 +191,7 @@ def lmdif(func, x, args=(), full_output=0,
     # region : Main loop
 
     # > initialize levenberg-marquardt parameter and iteration counter
-    par = 0.
+    lam = 0.0
     iter = 1
 
     # > begin outer loop
@@ -197,7 +208,7 @@ def lmdif(func, x, args=(), full_output=0,
             # >> if the diag is None, scale according to the norms of
             #    the columns of the initial jacobian
             if diag is None:
-                diag = np.zeros(n, np.float32)
+                diag = np.zeros(n, utility.data_type)
                 for j in range(n):
                     diag[j] = qrfac.acnorm[j]
                     if diag[j] == 0.0:
@@ -265,10 +276,174 @@ def lmdif(func, x, args=(), full_output=0,
         # > beginning of the inner loop
         while True:
             # > determine the levenberg-marquardt parameter
+            lam, wa1, sdiag = lm_lambda(n, fjac, ldfjac, ipvt,
+                                        diag, qtf, delta, lam)
 
+            # store the direction p and x + p. calculate the norm of p
+            for j in range(n):
+                wa1[j] = -wa1[j]
+                wa2[j] = x[j] + wa1[j]
+                wa3[j] = diag[j] * wa1[j]
+            # :: pnorm = || D * p ||_2
+            pnorm = enorm(wa3)
 
-            pass
+            # > on the first iteration, adjust the initial step bound
+            if iter is 1:
+                delta = min(delta, pnorm)
+
+            # > evaluate the function at x + p and calculate its norm
+            wa4 = func(wa2, *args)
+            nfev += 1
+            fnorm1 = enorm(wa4)
+
+            # > compute the scaled actual reduction
+            act_red = -1
+            if p1 * fnorm1 < fnorm:
+                # compute 2nd power
+                d1 = fnorm1 / fnorm
+                act_red = 1.0 - d1 * d1
+
+            # > compute the scaled predicted reduction and the
+            #   scaled directional derivative
+            #
+            # :: pre_red = (m(0) - m(p)) / m(0)
+            # ::              t   t           t
+            # ::         =  (p * J * J * p + J * r * p) / m(0)
+            #
+            # ::               t   t           t   t
+            # :: J = Q * R => p * J * J * p = p * R * R * p
+            # ::
+            # :: m(0) = fnorm * fnorm
+            for j in range(n):
+                wa3[j] = 0
+                l = ipvt[j] - 1
+                temp = wa1[l]
+                for i in range(j + 1):
+                    wa3[i] += fjac[i + j * ldfjac] * temp
+            # :: now wa3 stores J * p
+            temp1 = enorm(wa3) / fnorm
+            #                             t
+            # :: lam * p = - grad_m(p) = J * r
+            temp2 = (np.sqrt(lam) * pnorm) / fnorm
+            # :: TODO -  ... / p5
+            pre_red = temp1 * temp1 + temp2 * temp2 / p5
+            dir_der = -(temp1 * temp1 + temp2 * temp2)
+
+            # > compute the ratio of the actual to the predicted
+            #   reduction
+            ratio = 0.0
+            if pre_red != 0:
+                ratio = act_red / pre_red
+
+            # > update the step bound
+            if ratio <= p25:
+                if act_red >= 0.0:
+                    temp = p5
+                else:
+                    temp = p5 * dir_der / (dir_der + p5 * act_red)
+                if p1 * fnorm1 >= fnorm or temp < p1:
+                    temp = p1
+                # >> compute min, shrink the trust region
+                d1 = pnorm / p1
+                delta = temp * min(delta, d1)
+                lam /= temp
+            else:
+                if lam == 0.0 or ratio >= p75:
+                    # >> expand the trust region
+                    delta = pnorm / p5
+                    lam = p5 * lam
+
+            # > test for successful iteration
+            if ratio >= p0001:
+                # >> successful iteration. update x, fvec
+                #    and their norms
+                for j in range(n):
+                    x[j] = wa2[j]
+                    wa2[j] = diag[j] * x[j]
+                for i in range(m):
+                    fvec[i] = wa4[i]
+                xnorm = enorm(wa2)
+                fnorm = fnorm1
+                iter += 1
+
+            # > test for convergence
+            if np.abs(act_red) <= ftol and pre_red <= ftol \
+                    and p5 * ratio <= 1.0:
+                ier = 1
+            if delta <= xtol * xnorm:
+                ier = 2
+            if np.abs(act_red) <= ftol and pre_red <= ftol \
+                    and p5 * ratio <= 1.0 and ier is 2:
+                ier = 3
+            if ier is not 0:
+                break
+
+            # > test for termination and stringent tolerances
+            if nfev >= maxfev:
+                ier = 5
+            if np.abs(act_red) <= eps_machine and pre_red <= \
+                    eps_machine and p5 * ratio <= 1.0:
+                ier = 6
+            if delta <= eps_machine * xnorm:
+                ier = 7
+            if ier is not 0:
+                break
+
+            if ratio >= p0001:
+                break
+
+        if ier is not 0:
+            break
 
     # endregion : Main loop
 
-    return []
+    # > wrap results
+    errors = {0: ["Improper input parameters.", TypeError],
+              1: ["Both actual and predicted relative reductions "
+                  "in the sum of squares\n  are at most %f" % ftol,
+                  None],
+              2: ["The relative error between two consecutive "
+                  "iterates is at most %f" % xtol, None],
+              3: ["Both actual and predicted relative reductions in "
+                  "the sum of squares\n  are at most %f and the "
+                  "relative error between two consecutive "
+                  "iterates is at \n  most %f" % (ftol, xtol), None],
+              4: ["The cosine of the angle between func(x) and any "
+                  "column of the\n  Jacobian is at most %f in "
+                  "absolute value" % gtol, None],
+              5: ["Number of calls to function has reached "
+                  "maxfev = %d." % maxfev, ValueError],
+              6: ["ftol=%f is too small, no further reduction "
+                  "in the sum of squares\n  is possible.""" % ftol,
+                  ValueError],
+              7: ["xtol=%f is too small, no further improvement in "
+                  "the approximate\n  solution is possible." % xtol,
+                  ValueError],
+              8: ["gtol=%f is too small, func(x) is orthogonal to the "
+                  "columns of\n  the Jacobian to machine "
+                  "precision." % gtol, ValueError],
+              'unknown': ["Unknown error.", TypeError]}
+
+    if ier not in [1, 2, 3, 4] and not full_output:
+        if ier in [5, 6, 7, 8]:
+            print("!!! leastsq warning: %s" % errors[ier][0])
+
+    mesg = errors[ier][0]
+
+    if full_output:
+        cov_x = None
+        if ier in [1, 2, 3, 4]:
+            from numpy.dual import inv
+            from numpy.linalg import LinAlgError
+            perm = take(eye(n), ipvt - 1, 0)
+            r = triu(transpose(fjac.reshape(n, m))[:n, :])
+            R = dot(r, perm)
+            try:
+                cov_x = inv(dot(transpose(R), R))
+            except (LinAlgError, ValueError):
+                pass
+        dct = {'fjac': fjac, 'fvec': fvec, 'ipvt': ipvt,
+               'nfev': nfev, 'qtf': qtf}
+        return x, cov_x, dct, mesg, ier
+    else:
+        return x, ier

@@ -8,6 +8,7 @@
 ########################################################################
 
 import clip.cl as cl
+from clip.op.leastsq import lmdif
 
 import numpy as np
 import scipy.optimize as optimize
@@ -224,9 +225,16 @@ def f_gauss2d(p, X, Y):
 
 def fit_model_weighted(model_fcn, start_parameters,
                        data, sigmas, *args):
-    return optimize.leastsq(weighted_miss_fit, start_parameters,
-                            (model_fcn, data.ravel(), (1.0 / sigmas).
-                             astype('f').ravel()) + args, full_output=1)
+    std_res = optimize.leastsq(weighted_miss_fit, start_parameters,
+                               (model_fcn, data.ravel(), (1.0 / sigmas).
+                                astype('f').ravel()) + args,
+                               full_output=1)
+    res = lmdif(weighted_miss_fit, start_parameters,
+                (model_fcn, data.ravel(), (1.0 / sigmas).
+                 astype('f').ravel()) + args,
+                full_output=1)
+
+    return std_res
 
 
 def weighted_miss_fit(p, fcn, data, weights, *args):
