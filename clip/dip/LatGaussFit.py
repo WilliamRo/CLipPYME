@@ -173,6 +173,32 @@ class GaussianFitFactory:
 
         # > do the fit
         # --------------------------------------------------------------
+        if True:
+            L = X.size
+            m = L * L
+            n = 7
+            filename = r'latgauss_export.data'
+            f = open(filename, 'w')
+            # > write X
+            for i in range(L):
+                f.write('%f\n' % X[i])
+            # > write Y
+            for i in range(L):
+                f.write('%f\n' % Y[i])
+            # > write y
+            for i in range(L):
+                for j in range(L):
+                    f.write('%f\n' % data_mean[i, j])
+            # > write sigma
+            for i in range(L):
+                for j in range(L):
+                    f.write('%.16f\n' % sigma[i, j])
+            # > write x0
+            for i in range(n):
+                f.write('%.16f\n' % start_parameters[i])
+            # > close
+            f.close()
+
         (res, cov_x, info_dict, msg, res_code) = fit_model_weighted(
             self.fit_fcn, start_parameters, data_mean, sigma, X, Y)
 
@@ -225,16 +251,16 @@ def f_gauss2d(p, X, Y):
 
 def fit_model_weighted(model_fcn, start_parameters,
                        data, sigmas, *args):
-    std_res = optimize.leastsq(weighted_miss_fit, start_parameters,
-                               (model_fcn, data.ravel(), (1.0 / sigmas).
-                                astype('f').ravel()) + args,
-                               full_output=1)
+    # std_res = optimize.leastsq(weighted_miss_fit, start_parameters,
+    #                            (model_fcn, data.ravel(), (1.0 / sigmas).
+    #                             astype('float64').ravel()) + args,
+    #                            full_output=1)
     res = lmdif(weighted_miss_fit, start_parameters,
                 (model_fcn, data.ravel(), (1.0 / sigmas).
-                 astype('f').ravel()) + args,
+                 astype('float64').ravel()) + args,
                 full_output=1)
 
-    return std_res
+    return res
 
 
 def weighted_miss_fit(p, fcn, data, weights, *args):

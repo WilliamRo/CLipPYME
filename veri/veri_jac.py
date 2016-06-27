@@ -7,6 +7,7 @@ f(x1, x2, a1, a2) = [a1 * x1^2 + a2 * x2^3,
 
 import numpy as np
 from clip.op.fdjac2 import jac
+import clip.op.utility as ut
 
 
 def f(x, a1, a2):
@@ -30,7 +31,6 @@ if __name__ == "__main__":
     x = np.random.rand(2)
     a = np.random.rand(2)
     fvec = f(x, a[0], a[1])
-    epsfcn = 1e-8
     std_j = std_jac(x, a[0], a[1])
-    res_j = jac(f, x, (a[0], a[1]), fvec, epsfcn)
+    res_j = jac(f, x, (a[0], a[1]), fvec, 1e-8)
     print(std_j - res_j)

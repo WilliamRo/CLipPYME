@@ -6,12 +6,12 @@
 ########################################################################
 
 import numpy as np
-import utility
+from utility import data_type
 
 # region : Module parameters
 
-p5 = 0.5
-p25 = 0.25
+p5 = data_type(0.5)
+p25 = data_type(0.25)
 
 wa = None
 
@@ -84,9 +84,9 @@ def qr_solve(n, r, ldr, ipvt, diag, qtb, x, sdiag):
 
     global wa, p5, p25
     if wa is None or wa.size is not n:
-        wa = np.zeros(n, utility.data_type)
+        wa = np.zeros(n, data_type)
 
-    # region : Initialize parameters
+    # endregion : Initialize parameters
 
     # region : Preparation
     # ----------------------------
@@ -94,9 +94,11 @@ def qr_solve(n, r, ldr, ipvt, diag, qtb, x, sdiag):
     #   in particular, save the diagonal elements of r in x
     for j in range(n):
         for i in range(j, n):
-            r[i + j + ldr] = r[j + i * ldr]
+            r[i + j * ldr] = r[j + i * ldr]
         x[j] = r[j + j * ldr]
         wa[j] = qtb[j]
+
+    aa = 1
     # ----------------------------
     # endregion : Preparation
 
@@ -126,7 +128,7 @@ def qr_solve(n, r, ldr, ipvt, diag, qtb, x, sdiag):
                 # > determine a givens rotation which eliminates the
                 #   appropriate element in the current row of d
                 if sdiag[k] != 0.0:
-                    if np.abs(r[k + k * ldr] < np.abs(sdiag[k])):
+                    if np.abs(r[k + k * ldr]) < np.abs(sdiag[k]):
                         cotan = r[k + k * ldr] / sdiag[k]
                         sin = p5 / np.sqrt(p25 + p25 * (cotan * cotan))
                         cos = sin * cotan
@@ -164,11 +166,11 @@ def qr_solve(n, r, ldr, ipvt, diag, qtb, x, sdiag):
             nsing = j
         if nsing < n:
             wa[j] = 0.0
-    if nsing > 1:
+    if nsing >= 1:
         # > use back substitution
         for k in range(1, nsing + 1):
             j = nsing - k
-            sum = 0
+            sum = data_type(0)
             if nsing > j + 1:
                 for i in range(j + 1, nsing):
                     sum += r[i + j * ldr] * wa[i]

@@ -1,3 +1,4 @@
+# coding=utf-8
 ########################################################################
 #
 #   Created: June 20, 2016
@@ -6,17 +7,19 @@
 ########################################################################
 
 import numpy as np
-from scipy.linalg import norm as enorm
-
-from utility import dwarf
+from enorm import euclid_norm as enorm
+from dpmpar import get_machine_parameter as dpmpar
 from qrsolv import qr_solve
 
+from utility import data_type
 import utility
 
 # region: Module Parameters
 
-p1 = 0.1
-p001 = 0.001
+p1 = data_type(0.1)
+p001 = data_type(0.001)
+
+dwarf = dpmpar(2)
 
 wa1 = None
 wa2 = None
@@ -86,12 +89,13 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
             a positive input variable which specifies an upper
             bound on the euclidean norm of D*x
         lam: float
-            a non-negative variable. on input lam contains an
-            initial estimate of the levenberg-marquardt parameter.
-            on output lam contains the final estimate
+            a non-negative variable containing an initial estimate
+            of the levenberg-marquardt parameter.
 
     Returns
     -------
+        lam: float
+            final estimate
         x: ndarray
             an output array of length n which contains the least
             squares solution of the system J*x = r, sqrt(lam)*D*x = 0,
@@ -104,17 +108,17 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
 
     # region : Initialize parameters
     # ----------------------------------------
-    global p1, p001
+    global p1, p001, dwarf
     global wa1, wa2, x, sdiag
 
     if wa1 is None or wa1.size is not n:
-        wa1 = np.zeros(n, utility.data_type)
+        wa1 = np.zeros(n, data_type)
     if wa2 is None or wa2.size is not n:
-        wa2 = np.zeros(n, utility.data_type)
+        wa2 = np.zeros(n, data_type)
     if x is None or x.size is not n:
-        x = np.zeros(n, utility.data_type)
+        x = np.zeros(n, data_type)
     if sdiag is None or sdiag.size is not n:
-        sdiag = np.zeros(n, utility.data_type)
+        sdiag = np.zeros(n, data_type)
 
     # ----------------------------------------
     # endregion : Initialize parameters
@@ -122,7 +126,9 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
     # region : Compute Gauss-Newton direction
     # ------------------------------------------
     # :: stored in x. If the jacobian is rank-deficient,
-    #    obtain a least squares solution : -(J^t * J)^-1 * J^t * r
+    #    obtain a least squares solution :
+    # ::        t
+    # ::   R * P * x = -qtb
     nsing = n
     for j in range(n):
         wa1[j] = qtb[j]
@@ -134,8 +140,8 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
     # :: solving R * z = qtb using back substitution
     if nsing >= 1:
         for k in range(1, nsing + 1):
-            # ::         wa1[j] - x[j+1]*r[j][j+1] -...- x[n]*r[j][n]
-            # :: x[j] = ----------------------------------------------
+            # ::         wa1[j] - z[j+1]*r[j][j+1] -...- z[n]*r[j][n]
+            # :: z[j] = ----------------------------------------------
             # ::                           r[j][j]
             j = nsing - k
             wa1[j] /= r[j + j * ldr]
@@ -144,10 +150,14 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
                 for i in range(j):
                     wa1[i] -= r[i + j * ldr] * temp
 
-    # :: x = z * P
+    # ::      t
+    # :: x = P * z
     for j in range(n):
         l = ipvt[j] - 1
         x[l] = wa1[j]
+
+    if utility.lam_trace:
+        print ">> ||p^{GN}|| = %.10f" % enorm(x)
     # ------------------------------------------
     # endregion : Compute Gauss-Newton direction
 
@@ -163,7 +173,7 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
     # :: ||x||_2 = Delta + epsilon is acceptable
     fp = dxnorm - delta
     if fp <= p1 * delta:
-        lam = 0
+        lam = data_type(0.0)
         return [lam, x, sdiag]
     # ------------------------------------------------
     # endregion : Preparation
@@ -175,7 +185,7 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
     # :: If the jacobian is not rank deficient, the newton step provides
     #    a lower bound, lam_l, for the zero of the function.
     #    Otherwise set this bound to zero
-    lam_l = 0.0
+    lam_l = data_type(0.0)
     if nsing >= n:
         for j in range(n):
             l = ipvt[j] - 1
@@ -183,7 +193,7 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
             wa1[j] = diag[l] * (wa2[l] / dxnorm)
         # :: wa1 stores ...
         for j in range(n):
-            sum = 0.0
+            sum = data_type(0.0)
             if j >= 1:
                 for i in range(j):
                     sum += r[i + j * ldr] * wa1[i]
@@ -217,6 +227,11 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
 
     while True:
         iter += 1
+
+        if utility.lam_trace:
+            print '>> Step %d, lam ∈(%.8f, %.8f):' % (iter,
+                                                     lam_l, lam_u)
+
         # > evaluate the function at the current value of lam
         if lam == 0.0:
             d1 = dwarf
@@ -226,12 +241,18 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
         for j in range(n):
             wa1[j] = temp * diag[j]
 
+        if utility.lam_trace:
+            print '   lam = %.8f' % lam
+
         qr_solve(n, r, ldr, ipvt, wa1, qtb, x, sdiag)
         for j in range(n):
             wa2[j] = diag[j] * x[j]
         dxnorm = enorm(wa2)
         temp = fp
         fp = dxnorm - delta
+
+        if utility.lam_trace:
+            print '   Dx - delta = %.8f' % fp
 
         # > if the function is small enough, accept the current value
         #   of lam. also test for the exceptional cases where lam_l

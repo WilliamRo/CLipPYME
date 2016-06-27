@@ -6,14 +6,14 @@
 ########################################################################
 
 import numpy as np
-from scipy.linalg import norm as enorm
-
-import utility
+from enorm import euclid_norm as enorm
+from dpmpar import get_machine_parameter as dpmpar
+from utility import data_type
 
 # region : Module parameters
 
-p05 = 0.05
-eps_machine = utility.eps_machine
+p05 = data_type(0.05)
+eps_machine = dpmpar(1)
 
 ipvt = None
 rdiag = None
@@ -76,11 +76,11 @@ def qr(m, n, a, lda, pivot):
     if ipvt is None or ipvt.size is not n:
         ipvt = np.zeros(n, np.int32)
     if rdiag is None or rdiag.size is not n:
-        rdiag = np.zeros(n, utility.data_type)
+        rdiag = np.zeros(n, data_type)
     if acnorm is None or acnorm.size is not n:
-        acnorm = np.zeros(n, utility.data_type)
+        acnorm = np.zeros(n, data_type)
     if wa is None or wa.size is not n:
-        wa = np.zeros(n, utility.data_type)
+        wa = np.zeros(n, data_type)
 
     # ----------------------------------------
     # endregion : Initialize parameters
@@ -129,6 +129,7 @@ def qr(m, n, a, lda, pivot):
         ajnorm = enorm(a[lda * j + j:lda * (j + 1)])
         if ajnorm != 0.0:
             if a[j + j * lda] < 0.0:
+                # :: prepare to keep a[i + j * lda] positive
                 ajnorm = -ajnorm
             # :: x = sgn(x_1) * x / ||x||_2
             for i in range(j, m):
@@ -148,7 +149,7 @@ def qr(m, n, a, lda, pivot):
             jp1 = j + 1  # j plus 1
             if n > jp1:
                 for k in range(jp1, n):  # traverse columns
-                    sum = 0.0  # this is w[j]
+                    sum = data_type(0.0)  # this is w[j]
                     for i in range(j, m):  # traverse rows
                         #      v[i]             A[i][k-th column]
                         sum += a[i + j * lda] * a[i + k * lda]
@@ -158,6 +159,9 @@ def qr(m, n, a, lda, pivot):
                         # :: a[i][k] -= beta * w[k] * v[i]
                         a[i + k * lda] -= temp * a[i + j * lda]
 
+                    # :: rdiag stores information used to pivot
+                    # >> update rdiag to ensure that it can present
+                    #    alpha = +- ||x||_2
                     if pivot and rdiag[k] != 0:
                         temp = a[j + k * lda] / rdiag[k]
                         # >>> compute max
@@ -165,11 +169,13 @@ def qr(m, n, a, lda, pivot):
                         rdiag[k] *= np.sqrt(max(0.0, d1))
                         # >>> compute 2nd power
                         d1 = rdiag[k] / wa[k]
+                        # :: if rdiag is to small
                         if p05 * (d1 * d1) <= eps_machine:
                             rdiag[k] = enorm(
                                 a[jp1 + k * lda:(k + 1) * lda])
                             wa[k] = rdiag[k]
         # :: sgn(ajnorm) = -sgn(x_0)
+        # :: H * x = alpha * e_1
         rdiag[j] = -ajnorm
 
     # > return

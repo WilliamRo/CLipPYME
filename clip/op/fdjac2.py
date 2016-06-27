@@ -6,11 +6,12 @@
 ########################################################################
 
 import numpy as np
-import utility
+from utility import data_type
+from dpmpar import get_machine_parameter as dpmpar
 
 # region : Module parameters
 
-eps_machine = utility.eps_machine
+eps_machine = dpmpar(1)
 fjac = None
 wa = None
 
@@ -60,9 +61,9 @@ def jac(func, x, args, fvec, epsfcn):
     m = fvec.size
     # > check fjac and wa
     if fjac is None or fjac.size is not m * n:
-        fjac = np.zeros(m * n, utility.data_type)
+        fjac = np.zeros(m * n, data_type)
     if wa is None or wa.size is not m:
-        wa = np.zeros(m, utility.data_type)
+        wa = np.zeros(m, data_type)
     # -------------------------------------
     # endregion : Initialize parameters
 

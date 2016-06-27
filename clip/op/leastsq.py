@@ -1,3 +1,4 @@
+# coding=utf-8
 ########################################################################
 #
 #   Created: June 19, 2016
@@ -10,23 +11,26 @@ from numpy import (atleast_1d, dot, take, triu, shape, eye,
                    transpose, zeros, product, greater, array,
                    all, where, isscalar, asarray, inf, abs,
                    finfo, issubdtype, dtype)
-from scipy.linalg import norm as enorm
+
+from enorm import euclid_norm as enorm
 
 import utility
+from utility import data_type
 import qrfac
+from dpmpar import get_machine_parameter as dpmpar
 from fdjac2 import jac
 from qrfac import qr
 from lmpar import lm_lambda
 
 # region : Module parameters
 
-p1 = 0.1
-p5 = 0.5
-p25 = 0.25
-p75 = 0.75
-p0001 = 1e-4
+p1 = data_type(0.1)
+p5 = data_type(0.5)
+p25 = data_type(0.25)
+p75 = data_type(0.75)
+p0001 = data_type(1e-4)
 
-eps_machine = utility.eps_machine
+eps_machine = dpmpar(1)
 
 wa4 = None
 qtf = None
@@ -35,8 +39,8 @@ qtf = None
 # endregion : Module parameters
 
 def lmdif(func, x, args=(), full_output=0,
-          col_deriv=0, ftol=1.49012e-8, xtol=1.49012e-8,
-          gtol=0.0, maxfev=0, epsfcn=1e-8, factor=100, diag=None):
+          ftol=data_type(1.49012e-8), xtol=data_type(1.49012e-8),
+          gtol=0.0, maxfev=0, epsfcn=None, factor=100, diag=None):
     """
     Minimize the sum of the squares of m nonlinear functions in n
         variables by a modification of the levenberg-marquardt
@@ -56,10 +60,6 @@ def lmdif(func, x, args=(), full_output=0,
         Any extra arguments to func are placed in this tuple.
     full_output: bool, optional
         non-zero to return all optional outputs.
-    col_deriv: bool, optional
-        non-zero to specify that the Jacobian function computes
-        derivatives down the columns (faster, because there is no
-        transpose operation).
     ftol: float, optional
         Relative error desired in the sum of squares.
     xtol: float, optional
@@ -140,6 +140,8 @@ def lmdif(func, x, args=(), full_output=0,
     x = np.asarray(x).flatten()
     if not isinstance(args, tuple):
         args = (args,)
+    if epsfcn is None:
+        epsfcn = finfo(utility.data_type).eps
 
     if diag is None:
         mode = 1
@@ -154,7 +156,7 @@ def lmdif(func, x, args=(), full_output=0,
         raise ValueError('!!! Some input parameters for lmdif ' +
                          'are illegal')
 
-    if diag is not None:
+    if diag is not None:  # if mode == 2
         for d in diag:
             if d <= 0:
                 raise ValueError('!!! Entries in diag must be positive')
@@ -165,8 +167,13 @@ def lmdif(func, x, args=(), full_output=0,
 
     # > evaluate the function at the starting point and calculate
     # its norm
+    # :: evaluate r(x) -> fvec
     fvec = func(x, *args)
+    # :: evaluate ||r(x)||_2 -> fnorm
     fnorm = enorm(fvec)
+    if utility.wm_trace:
+        print(">>> L-M begins")
+        print(">>> ||x0|| = %.10f" % fnorm)
 
     # region : initialize other parameters
     # -----------------------------------------
@@ -180,9 +187,9 @@ def lmdif(func, x, args=(), full_output=0,
         maxfev = 200 * (n + 1)
     # > check wa4 and qtf
     if wa4 is None or wa4.size is not m:
-        wa4 = np.zeros(m, utility.data_type)
+        wa4 = np.zeros(m, data_type)
     if qtf is None or qtf.size is not n:
-        qtf = np.zeros(n, utility.data_type)
+        qtf = np.zeros(n, data_type)
     # ------------------------------------------
     # endregion : initialize other parameters
 
@@ -191,16 +198,34 @@ def lmdif(func, x, args=(), full_output=0,
     # region : Main loop
 
     # > initialize levenberg-marquardt parameter and iteration counter
-    lam = 0.0
+    lam = data_type(0.0)
     iter = 1
 
     # > begin outer loop
     while True:
+        if utility.wm_trace:
+            print(">>> Step %d:" % iter)
         # > calculate the jacobian matrix
+        # :: evaluate J(x) -> fjac: m by n
         fjac = jac(func, x, args, fvec, epsfcn)
         nfev += n
 
         # > compute the qr factorization of the jacobian
+        # ::
+        # ::                  /  R  \         n by n
+        # ::     J * P = Q * |       |
+        # ::                  \  0  /   (m - n) by n
+        # ::      t
+        # ::     Q  = H_n * ... H_2 * H_1
+        # ::
+        # ::    For H in { H_1, H_2, ..., H_n }, and arbitrary A
+        # ::                        t
+        # ::    H = I - beta * v * v
+        # ::                     t                  t
+        # ::    H * A = A - v * w,      w = beta * A * v
+        # ::    information of P -> ipvt
+        # ::    R -> rdiag and strict upper trapezoidal part of fjac
+        # ::    { H_k }_k -> lower trapezoidal part of fjac
         ipvt, rdiag, acnorm = qr(m, n, fjac, ldfjac, True)
 
         # > on the first iteration
@@ -208,7 +233,7 @@ def lmdif(func, x, args=(), full_output=0,
             # >> if the diag is None, scale according to the norms of
             #    the columns of the initial jacobian
             if diag is None:
-                diag = np.zeros(n, utility.data_type)
+                diag = np.zeros(n, data_type)
                 for j in range(n):
                     diag[j] = qrfac.acnorm[j]
                     if diag[j] == 0.0:
@@ -221,7 +246,7 @@ def lmdif(func, x, args=(), full_output=0,
             xnorm = enorm(wa3)
             delta = factor * xnorm
             if delta == 0.0:
-                delta = factor
+                delta = data_type(factor)
 
         # > form (q^T)*fvec and store the first n components in qtf
         # :: see x_{NG} = - PI * R^{-1} * Q_1^T * fvec
@@ -232,7 +257,7 @@ def lmdif(func, x, args=(), full_output=0,
             # :: here the lower trapezoidal part of fjac contains
             #    a factored form of q, in other words, a set of v
             if fjac[j + j * ldfjac] != 0:
-                sum = 0.0  # r^T * v
+                sum = data_type(0.0)  # r^T * v
                 for i in range(j, m):
                     sum += fjac[i + j * ldfjac] * wa4[i]
                 # :: mul -beta
@@ -244,22 +269,25 @@ def lmdif(func, x, args=(), full_output=0,
             qtf[j] = wa4[j]
 
         # > compute the norm(inf norm) of the scaled gradient
-        #         t       t    t       t
-        # :: g = J * r = R * Q1 * r = R * qtf
-        gnorm = 0.0
+        #         t           t
+        # :: g = J * r = P * R * qtf
+        #
+        gnorm = data_type(0.0)
         wa2 = qrfac.acnorm
         if fnorm != 0:
             for j in range(n):
                 # >> get index
                 l = ipvt[j] - 1
                 if wa2[l] != 0.0:
-                    sum = 0.0
-                    for i in range(j):
+                    sum = data_type(0.0)
+                    for i in range(j + 1):
                         sum += fjac[i + j * ldfjac] * (qtf[i] / fnorm)
                     # >>> computing max
                     d1 = np.abs(sum / wa2[l])
                     gnorm = max(gnorm, d1)
 
+        if utility.wm_trace:
+            print("       ||df|| = %.10f, nfev = %d" % (gnorm, nfev))
         # > test for convergence of the gradient norm
         if gnorm <= gtol:
             ier = 4
@@ -275,10 +303,17 @@ def lmdif(func, x, args=(), full_output=0,
 
         # > beginning of the inner loop
         while True:
+            if utility.wm_trace:
+                print("    => try delta = %.10f:" % delta)
+                if abs(delta - 32.1457717551) < 1e-5:
+                    utility.lam_trace = True
+                    print("--" * 26 + " lmpar begin")
             # > determine the levenberg-marquardt parameter
             lam, wa1, sdiag = lm_lambda(n, fjac, ldfjac, ipvt,
                                         diag, qtf, delta, lam)
-
+            if utility.lam_trace:
+                utility.lam_trace = False
+                print("--" * 26 + " lmpar end")
             # store the direction p and x + p. calculate the norm of p
             for j in range(n):
                 wa1[j] = -wa1[j]
@@ -335,6 +370,9 @@ def lmdif(func, x, args=(), full_output=0,
             if pre_red != 0:
                 ratio = act_red / pre_red
 
+            if utility.wm_trace:
+                print("          ratio = %.10f, nfev = %d" % (ratio, nfev))
+
             # > update the step bound
             if ratio <= p25:
                 if act_red >= 0.0:
@@ -347,11 +385,15 @@ def lmdif(func, x, args=(), full_output=0,
                 d1 = pnorm / p1
                 delta = temp * min(delta, d1)
                 lam /= temp
+                if utility.wm_trace:
+                    print("          delta ↓ -> %.10f:" % delta)
             else:
                 if lam == 0.0 or ratio >= p75:
                     # >> expand the trust region
                     delta = pnorm / p5
                     lam = p5 * lam
+                    if utility.wm_trace:
+                        print("          delta ↑ -> %.10f:" % delta)
 
             # > test for successful iteration
             if ratio >= p0001:
@@ -363,8 +405,16 @@ def lmdif(func, x, args=(), full_output=0,
                 for i in range(m):
                     fvec[i] = wa4[i]
                 xnorm = enorm(wa2)
+
+                if utility.wm_trace:
+                    print("    √ ||x|| ↓ %.10f -> %.10f" %
+                          (fnorm - fnorm1, fnorm1))
+
                 fnorm = fnorm1
                 iter += 1
+            elif utility.wm_trace:
+                print("       × ||x|| not changed")
+
 
             # > test for convergence
             if np.abs(act_red) <= ftol and pre_red <= ftol \
@@ -386,9 +436,11 @@ def lmdif(func, x, args=(), full_output=0,
                 ier = 6
             if delta <= eps_machine * xnorm:
                 ier = 7
+            if gnorm <= eps_machine:
+                ier = 8
             if ier is not 0:
                 break
-
+            tmp = 1
             if ratio >= p0001:
                 break
 
@@ -400,10 +452,10 @@ def lmdif(func, x, args=(), full_output=0,
     # > wrap results
     errors = {0: ["Improper input parameters.", TypeError],
               1: ["Both actual and predicted relative reductions "
-                  "in the sum of squares\n  are at most %f" % ftol,
-                  None],
+                  "in the sum of squares are at most %f * 1e-8" %
+                  (ftol * 1e8), None],
               2: ["The relative error between two consecutive "
-                  "iterates is at most %f" % xtol, None],
+                  "iterates is at most %f * 1e-8" % (xtol * 1e8), None],
               3: ["Both actual and predicted relative reductions in "
                   "the sum of squares\n  are at most %f and the "
                   "relative error between two consecutive "
@@ -429,6 +481,9 @@ def lmdif(func, x, args=(), full_output=0,
             print("!!! leastsq warning: %s" % errors[ier][0])
 
     mesg = errors[ier][0]
+
+    if utility.wm_trace:
+        print(">>> " + mesg)
 
     if full_output:
         cov_x = None

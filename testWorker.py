@@ -41,7 +41,7 @@ def getErrorText(index, res, std):
 # region : Initialize parameters
 
 # > Input parameter
-numFramesToAnalyze = 5
+numFramesToAnalyze = 1
 
 fitMod = 'LatGaussFitFR'
 threshold = 0.6
