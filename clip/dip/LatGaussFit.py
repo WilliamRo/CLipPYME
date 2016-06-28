@@ -173,7 +173,7 @@ class GaussianFitFactory:
 
         # > do the fit
         # --------------------------------------------------------------
-        if True:
+        if False:
             L = X.size
             m = L * L
             n = 7
@@ -205,7 +205,9 @@ class GaussianFitFactory:
         # > try to estimate errors based on the covariance matrix
         # --------------------------------------------------------------
         fit_errors = None
+        bg_mean = 0
         try:
+            bg_mean = np.linalg.norm(info_dict['fvec'])
             fit_errors = np.sqrt(
                 np.diag(cov_x) * (
                     info_dict['fvec'] * info_dict['fvec']).sum() /
@@ -217,7 +219,6 @@ class GaussianFitFactory:
 
         # > package results
         # --------------------------------------------------------------
-        bg_mean = 0
         return GaussianFitResultR(res, self.metadata,
                                   (xslice, yslice, slice(0, 1, None)),
                                   res_code, fit_errors, bg_mean)
@@ -257,7 +258,7 @@ def fit_model_weighted(model_fcn, start_parameters,
     #                            full_output=1)
     res = lmdif(weighted_miss_fit, start_parameters,
                 (model_fcn, data.ravel(), (1.0 / sigmas).
-                 astype('float64').ravel()) + args,
+                 astype('f').ravel()) + args,
                 full_output=1)
 
     return res

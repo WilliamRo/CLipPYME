@@ -132,6 +132,9 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
     nsing = n
     for j in range(n):
         wa1[j] = qtb[j]
+        #
+        if np.abs(r[j + j * ldr]) < 1e-8:
+            r[j + j * ldr] = 0.0
         if r[j + j * ldr] == 0.0 and nsing is n:
             nsing = j
         if nsing < n:
@@ -149,6 +152,8 @@ def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
             if j >= 1:
                 for i in range(j):
                     wa1[i] -= r[i + j * ldr] * temp
+                    # if abs(wa1[i]) > 1e5:
+                    #     aaa = 1
 
     # ::      t
     # :: x = P * z

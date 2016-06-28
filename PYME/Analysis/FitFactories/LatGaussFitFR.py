@@ -132,6 +132,7 @@ class GaussianFitFactory(FFBase.FitFactory):
         #try to estimate errors based on the covariance matrix
         fitErrors=None
         try:
+            bgm = np.linalg.norm(infodict['fvec'])
             fitErrors = np.sqrt(np.diag(cov_x)*(infodict['fvec']*infodict['fvec']).sum()/(len(dataMean.ravel())- len(res)))
         except Exception:
             pass

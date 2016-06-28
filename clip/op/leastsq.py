@@ -305,7 +305,7 @@ def lmdif(func, x, args=(), full_output=0,
         while True:
             if utility.wm_trace:
                 print("    => try delta = %.10f:" % delta)
-                if abs(delta - 32.1457717551) < 1e-5:
+                if abs(delta - 219.2828553956) < 1e-5:
                     utility.lam_trace = True
                     print("--" * 26 + " lmpar begin")
             # > determine the levenberg-marquardt parameter

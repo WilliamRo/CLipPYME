@@ -20,7 +20,7 @@ print('>>> Modules imported')
 
 # region : Utilities
 
-def getErrorText(index, res, std):
+def getErrorText(index, res, std, res_f, std_f):
     global colnames, tol
     text = 'row[%d]\n' % index
     txtRes = '   res: '
@@ -32,7 +32,8 @@ def getErrorText(index, res, std):
         txtRes += '%s(%f)  ' % (colnames[i], res[i])
         txtStd += '%s(%f)  ' % (colnames[i], std[i])
         txtDel += '%s(%.1f%%)  ' % (colnames[i], d * 100)
-
+    txtRes += '-> ||r|| = %.10f' % res_f
+    txtStd += '-> ||r|| = %.10f' % std_f
     return text + txtRes + '\n' + txtStd + '\n' + txtDel + '\n\n'
 
 
@@ -44,7 +45,7 @@ def getErrorText(index, res, std):
 numFramesToAnalyze = 1
 
 fitMod = 'LatGaussFitFR'
-threshold = 0.6
+threshold = 1
 bIndiceRange = [-20, 0]
 
 # > File names
@@ -84,7 +85,8 @@ if not os.path.exists(filename) or not 'filename' in dir():
 # > file names
 fn = filename.split('\\')[-1].split('.')[0]
 resFilename = r'DH5Files\results_%s_%d.h5r' % (fn, numFramesToAnalyze)
-stdresFilename = r'DH5Files\stdResults_%s_%d.h5r' % (fn, numFramesToAnalyze)
+stdresFilename = r'DH5Files\stdResults_%s_%d.h5r' % (
+fn, numFramesToAnalyze)
 veriFilename = r'DH5Files\veri_%s_%d.txt' % (fn, numFramesToAnalyze)
 
 # > read frames with shape (slices, width, height) from file
@@ -154,8 +156,10 @@ if not os.path.exists(stdresFilename):
     # > save results
     stdresFile = tables.openFile(stdresFilename, 'w')
 
-    stdresFile.createTable(stdresFile.root, 'FitResults', np.hstack(stdResults),
-                           filters=tables.Filters(complevel=5, shuffle=True))
+    stdresFile.createTable(stdresFile.root, 'FitResults',
+                           np.hstack(stdResults),
+                           filters=tables.Filters(complevel=5,
+                                                  shuffle=True))
 
     stdresFile.close()
     print('>>> Standard results created')
@@ -190,8 +194,10 @@ errCount = 0
 maxCount = 100
 tol = 1e-3
 
-line = 'Parameters: [%s]\ntol = %.1f%%\n' % (', '.join(colnames), tol * 100)
-line += 'res row number: %d, stdres row number: %d' % (resNRows, stdresNRows)
+line = 'Parameters: [%s]\ntol = %.1f%%\n' % (
+', '.join(colnames), tol * 100)
+line += 'res row number: %d, stdres row number: %d' % (
+resNRows, stdresNRows)
 veriFile.writelines(line + '\n\n')
 
 # > scan each row
@@ -200,7 +206,9 @@ for i in range(0, nrows):
         d = abs((stdres[i][1][j] - res[i][1][j]) / stdres[i][1][j])
         if d > tol:
             errCount += 1
-            veriFile.writelines(getErrorText(i, res[i][1], stdres[i][1]))
+            content = getErrorText(i, res[i][1], stdres[i][1],
+                                   res[i][5], stdres[i][5])
+            veriFile.writelines(content)
             break
 
     if errCount >= maxCount:

@@ -176,6 +176,7 @@ class Worker:
             else:
                 for i in range(len(ofd)):
                     p = ofd[i]
+                    # if i is 31:
                     res[i] = fitFac.FromPoint(p.x, p.y)
         else:
             res = [fitFac.FromPoint(p.x, p.y) for p in ofd]
