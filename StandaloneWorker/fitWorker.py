@@ -82,6 +82,7 @@ class Worker:
         self.threshold = threshold
         self.md = metadata
         self.fitModule = fitModule
+        self.findMethod = 'CLOfind'
         self.SNThreshold = SNThreshold
 
         self.bBuffer = backgroundBuffer(self.dBuffer)
@@ -135,14 +136,20 @@ class Worker:
         pass
 
         # get ofind
-        import PYME.Analysis.ofind as ofind
-        ofd = ofind.ObjectIdentifier(bgd * (bgd > 0))
+        #import PYME.Analysis.ofind as ofind
+        ofdMod = self._getOfind()
+        ofd = ofdMod.ObjectIdentifier(bgd * (bgd > 0))
 
         # perform objects finding
         debounce = self.md.getOrDefault('Analysis.DebounceRadius', 5)
         discardClumpRadius = self.md.getOrDefault('Analysis.ClumpRejectRadius', 0)
 
-        ofd.FindObjects(self.calcThreshold(sigma), 0,
+        if self.findMethod == 'CLOfind':
+            ofd.FindObjects(self.calcThreshold(sigma),
+                            debounceRadius=debounce,
+                            discardClumpRadius=discardClumpRadius)
+        else:
+            ofd.FindObjects(self.calcThreshold(sigma), 0,
                         debounceRadius=debounce,
                         discardClumpRadius=discardClumpRadius)
 
@@ -199,8 +206,12 @@ class Worker:
                               fromlist=['PYME', 'Analysis', 'FitFactories'])
 
     def _getOfind(self):
-        # !
-        pass
+        # import CL based modules
+        if self.findMethod == 'CLOfind':
+            return __import__('clip.dip.ofind', fromlist=['clip', 'dip'])
+        # import PYME modules
+        else:
+            return __import__('PYME.Analysis.ofind', fromlist=['PYME', 'Analysis'])
 
     def calcSigma(self, data):
         var = cameraMaps.getVarianceMap(self.md)
