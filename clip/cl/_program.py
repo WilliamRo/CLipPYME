@@ -23,6 +23,9 @@ class Program(cl.Program):
 
     def __init__(self, arg1, arg2=None, arg3=None):
         super(Program, self).__init__(arg1, arg2, arg3)
+        if self._prg is None:
+            import pyopencl.cffi_cl as _cl
+            self._prg = _cl._Program(self._context, self._source)
 
     # endregion : Constructor
 
@@ -70,7 +73,11 @@ class Program(cl.Program):
     # region : Operator Overloading
 
     def __getattr__(self, attr):
+        # if attr == 'ptr':
+        #     return self.from_int_ptr(self.int_ptr)
+        # else:
         att = super(Program, self).__getattr__(attr)
+
         # upgrade Kernel instance
         if isinstance(att, cl.Kernel):
             att.__class__ = Kernel

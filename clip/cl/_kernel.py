@@ -64,6 +64,11 @@ class Kernel(cl.Kernel):
         # if queue is None, set default queue
         if queue is None:
             queue = self.context.default_queue
+        # check parameters
+        if not isinstance(global_size, tuple):
+            global_size = (global_size,)
+        if not isinstance(args, tuple):
+            args = (args,)
         # call pyopencl.Kernel.__call__
         evt = super(Kernel, self).__call__(
             queue, global_size, local_size, *args,

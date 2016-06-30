@@ -1,0 +1,16 @@
+#define real double
+
+#define ROI_L 11
+#define M ROI_L*ROI_L
+#define N 7
+
+
+/* parameter struct */
+typedef struct
+{
+	real X[ROI_L];
+	real Y[ROI_L];
+	real y[M];
+	real sigma[M];
+
+} fcndata;

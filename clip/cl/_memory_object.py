@@ -77,6 +77,16 @@ class MemoryObject(cl.MemoryObject):
                                is_blocking=is_blocking,
                                wait_for=wait_for)
 
+    def enqueue_write(self, src, queue=None,
+                     is_blocking=True, wait_for=[]):
+        # if queue is None, set default queue
+        if queue is None:
+            queue = self.context.default_queue
+        # write memory to device
+        return cl.enqueue_copy(queue, self, src,
+                               is_blocking=is_blocking,
+                               wait_for=wait_for)
+
     # endregion : Public Methods
 
     pass  # patch for region

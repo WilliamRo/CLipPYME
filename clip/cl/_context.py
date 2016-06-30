@@ -72,11 +72,15 @@ class Context(cl.Context):
 
     # region : Public Methods
 
-    def create_build_program(self, src, devices=None,
-                             options=[], cache_dir=None):
+    def create_build_program(self, src=None, devices=None,
+                             options=[], cache_dir=None,
+                             src_file_name=None):
         # import
         from _program import Program
         import clip.cl
+        # check src
+        if src is None:
+            src = open(src_file_name).read()
         # create program
         self.program = Program(self, src)
         # build program
@@ -86,8 +90,54 @@ class Context(cl.Context):
 
         return self.program
 
-    def create_kernel(self):
-        pass
+    def compile_link_program(self, header_infos, source_infos,
+                             build_options=[],
+                             compile_options=[], link_options=[],
+                             info_is_filename=True):
+        # > import
+        from _program import Program
+        import clip.cl
+        import os
+
+        # > set environment variable to suppress caching
+        os.environ['PYOPENCL_NO_CACHE'] = 'TRUE'
+
+        # > create header programs
+        from pyopencl._cffi import ffi
+        headers = []
+        for info in header_infos:
+            if info_is_filename:
+                routine = open(info[0]).read()
+            else:
+                routine = info[0]
+            # >> create header program
+            pgm = Program(self, routine)
+            # >> get cstring
+            head_name = ffi.new("char[]", info[1])
+            # >> wrap header
+            headers += ((head_name, pgm._prg),)
+
+        # > create source programs and compile
+        sources = []
+        for info in source_infos:
+            if info_is_filename:
+                routine = open(info).read()
+            else:
+                routine = info
+            # >> create program
+            pgm = Program(self, routine)
+            # >> try to compile
+            pgm.compile(compile_options, headers=headers)
+            # >> add program to sources
+            sources += (pgm._prg,)
+        # > try to link
+        import pyopencl
+        self.program = pyopencl.link_program(self,
+                                             sources,
+                                             link_options)
+        clip.cl.program = self.program
+        self.program.__class__ = Program
+        return self.program
 
     def create_buffer(self, access_mode, size=0, hostbuf=None,
                       host_ptr_mode=mem_host_ptr_mode.DEFAULT):

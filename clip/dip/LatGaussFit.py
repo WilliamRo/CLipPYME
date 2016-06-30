@@ -168,8 +168,21 @@ class GaussianFitFactory:
         x0 = 1e3 * self.metadata.voxelsize.x * x
         y0 = 1e3 * self.metadata.voxelsize.y * y
 
-        start_parameters = [A, x0, y0, 250 / 2.35,
-                            data_mean.min(), .001, .001]
+        start_parameters = np.asarray([A, x0, y0, 250 / 2.35,
+                            data_mean.min(), .001, .001], np.float64)
+
+        # > send data to device
+        # TODO: set to CL scope temporarily
+        # >> X
+        cl.X = cl.create_buffer(cl.am.READ_ONLY, X.nbytes)
+        cl.X.enqueue_write(X)
+        # >> Y
+        cl.Y = cl.create_buffer(cl.am.READ_ONLY, Y.nbytes)
+        cl.Y.enqueue_write(Y)
+        # >> x0
+        cl.x0 = cl.create_buffer(cl.am.READ_WRITE,
+                                 start_parameters.nbytes)
+        cl.x0.enqueue_write(start_parameters)
 
         # > do the fit
         # --------------------------------------------------------------

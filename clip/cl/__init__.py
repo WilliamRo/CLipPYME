@@ -40,6 +40,8 @@ __all__ = [
 ]
 
 # Initialize variables
+am = mem_access_mode
+hm = mem_host_ptr_mode
 context = None
 program = None
 
@@ -111,6 +113,21 @@ def create_build_program(src, devices=None,
         raise StandardError('!!! cl.context is None')
     return context.create_build_program(src, devices,
                                         options, cache_dir)
+
+
+def compile_link_program(header_infos, source_infos,
+                         build_options=[],
+                         compile_options=[], link_options=[],
+                         info_is_filename=True):
+    """Separate compilation and linking"""
+    if context is None:
+        raise StandardError('!!! cl.context is None')
+    return context.compile_link_program(header_infos,
+                                        source_infos,
+                                        build_options,
+                                        compile_options,
+                                        link_options,
+                                        info_is_filename)
 
 
 def create_buffer(access_mode, size=0, hostbuf=None,

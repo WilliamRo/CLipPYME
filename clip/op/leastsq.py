@@ -22,6 +22,8 @@ from fdjac2 import jac
 from qrfac import qr
 from lmpar import lm_lambda
 
+import clip.cl as cl
+
 # region : Module parameters
 
 p1 = data_type(0.1)
@@ -305,7 +307,7 @@ def lmdif(func, x, args=(), full_output=0,
         while True:
             if utility.wm_trace:
                 print("    => try delta = %.10f:" % delta)
-                if abs(delta - 219.2828553956) < 1e-5:
+                if False:
                     utility.lam_trace = True
                     print("--" * 26 + " lmpar begin")
             # > determine the levenberg-marquardt parameter
