@@ -186,7 +186,7 @@ class GaussianFitFactory:
 
         # > do the fit
         # --------------------------------------------------------------
-        if False:
+        if True:
             L = X.size
             m = L * L
             n = 7
@@ -209,6 +209,15 @@ class GaussianFitFactory:
             # > write x0
             for i in range(n):
                 f.write('%.16f\n' % start_parameters[i])
+            # > write img
+            img = np.asarray(self.data_mean, np.float64).flatten()
+            for i in range(img.size):
+                f.write('%.16f\n' % img[i])
+            # > write sigma
+            img_sig = np.asarray(self.noise_sigma, np.float64).flatten()
+            for i in range(img_sig.size):
+                f.write('%s.16f\n' % img_sig[i])
+
             # > close
             f.close()
 

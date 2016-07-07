@@ -16,6 +16,7 @@ https://documen.tician.de/pyopencl/
 
 from pyopencl import enqueue_copy
 from pyopencl import wait_for_events
+from pyopencl import LocalMemory
 
 from enum import device_types, vendors, \
     mem_host_ptr_mode, mem_access_mode

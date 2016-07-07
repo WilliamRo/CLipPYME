@@ -69,6 +69,12 @@ class Kernel(cl.Kernel):
             global_size = (global_size,)
         if not isinstance(args, tuple):
             args = (args,)
+        if local_size is not None and not \
+                isinstance(local_size, tuple):
+            local_size = (local_size,)
+        if global_offset is not None and not \
+                isinstance(global_offset, tuple):
+            global_offset = (global_offset,)
         # call pyopencl.Kernel.__call__
         evt = super(Kernel, self).__call__(
             queue, global_size, local_size, *args,

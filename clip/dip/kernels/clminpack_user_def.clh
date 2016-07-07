@@ -1,9 +1,13 @@
+#ifndef CL_MINPACK_USER_DEF
+#define CL_MINPACK_USER_DEF
+
+/* define data type */
 #define real double
+#define USE_FLOAT_64
 
 #define ROI_L 11
 #define M ROI_L*ROI_L
 #define N 7
-
 
 /* parameter struct */
 typedef struct
@@ -14,3 +18,5 @@ typedef struct
 	real sigma[M];
 
 } fcndata;
+
+#endif // !CL_MINPACK_USER_DEF

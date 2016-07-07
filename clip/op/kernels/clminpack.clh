@@ -1,0 +1,77 @@
+#ifndef CL_MINPACK
+#define CL_MINPACK
+
+#include "clminpack_user_def.h"
+
+/* SPECIFICATION
+
+clminpack_user_def.h must contain:
+
+	1. one of the code blocks below:
+
+		#define real double
+		#define USE_FLOAT_64
+
+		#define real float
+		#define USE_FLOAT_32
+
+	2. definitions for M and N(<M), e.g.
+
+		#define M 10
+		#define N 7
+
+	3. definition for fcndata, e.g.
+
+		typedef struct
+		{
+			real X[N];
+			real Y[N];
+			real y[M];
+			real sigma[M];
+
+		} fcndata;
+*/
+
+#define M_NEXT (1 << (int)rint(log2((float)M)))
+
+#define  gwd  get_work_dim
+#define  ggs  get_global_size
+#define  ggi  get_global_id
+#define  gls  get_local_size
+#define  gli  get_local_id
+#define  gng  get_num_groups
+#define  ggri get_group_id
+#define  ggo  get_global_offset
+
+#define loc_bar barrier(CLK_LOCAL_MEM_FENCE)
+#define glb_bar barrier(CLK_GLOBAL_MEM_FENCE)
+
+#define p1 .1
+#define p5 .5
+#define p05 .05
+#define p25 .25
+#define p75 .75
+#define p0001 1e-4
+
+// supplied by user
+void fcn_mn(local fcndata *p, local real *x, local real *fvec);
+
+void lmdif(local fcndata *p, local real *x, local real *fvec,
+		   real ftol, real xtol, real gtol, int maxfev, real epsfcn,
+		   local real *diag, int mode, real factor, local int *nfev,
+		   local real *fjac, int ldfjac, local int *ipvt,
+		   local real *qtf, local real *wa1, local real *wa2,
+		   local real *wa3, local real *wa4, local int *info);
+
+real dpmpar(int i);
+
+void enorm_p(int n, local real *x, local real *norm, local real *wa);
+real enorm(int n, local real *x);
+
+void fdjac2(local fcndata *p, local real *x, local real *fvec,
+			local real *fjac, int ldfjac, real epsfcn, local real *wa);
+
+void qrfac(local real *a, int lda, int pivot, local int *ipvt,
+		   local real *rdiag, local real *acnorm, local real *wa);
+
+#endif // !CL_MINPACK

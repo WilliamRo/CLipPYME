@@ -53,8 +53,18 @@ print('-=> dip.ip initialized')
 
 if __name__ == '__main__':
     import numpy as np
+    x = np.zeros((2, 2), np.int32)
+    x[0, 0] = 800
+    x[0, 1] = 801
+    x[1, 0] = 810
+    x[1, 1] = 811
+    print x.flatten()
+    print x.size
+    x_buf = cl.create_buffer(cl.am.READ_ONLY, x.nbytes)
+    x_buf.enqueue_write(x)
+    cl.program.test(4, x_buf)
 
-    cl.program.tst()
+
 
 
 # endregion : Self-test
