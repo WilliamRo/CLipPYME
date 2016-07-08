@@ -15,7 +15,6 @@ import  numpy as np
 import  clip.cl as cl
 import ctypes as ct
 import time
-import sys
 #import pylab
 
 
@@ -249,40 +248,7 @@ class ObjectIdentifier(list):
         where "fast" performs a z-projection and then filters, wheras "good" filters in 3D before
         projecting. The parameters filterRadiusLowpass and filterRadiusHighpass control the bandpass filter
         used to identify 'point-like' features. filterRadiusZ is the radius used for the axial smoothing filter"""
-        global filtRadLowpass, filtRadHighpass, weightsLowpass, weightsHighpass
-
-        self.clData = data.astype('f').reshape([pixelCount])
-        self.data = data.astype('float32')
-
-
-    def __FilterData2D(self,data):
-        mode = _ni_support._extend_mode_to_code("reflect")
-        #lowpass filter to suppress noise
-        output, a = _ni_support._get_output(None, data)
-        _nd_image.correlate1d(data, weightsLowpass, 0, output, mode, 0,0)
-        # print '1st low filter result in py is %.10f. ' % a[13, 112]
-        # tmpSum = 0.0
-        # for i in range(-4,5,1):
-        #     tmpSum = tmpSum + a[13, 112+i]*weightsLowpass[i+4]
-        # print 'tmpSum:', tmpSum
-        _nd_image.correlate1d(output, weightsLowpass, 1, output, mode, 0,0)
-        # print '2nd low filter result in py is %f. ' % a[13, 112]
-
-        #lowpass filter again to find background
-        output, b = _ni_support._get_output(None, data)
-        _nd_image.correlate1d(data, weightsHighpass, 0, output, mode, 0,0)
-        # print '1st high filter result in py is %.10f. ' % b[13, 112]
-        _nd_image.correlate1d(output, weightsHighpass, 1, output, mode, 0,0)
-        # print '2nd high filter result in py is %f. ' % b[13, 112]
-
-        return a - b
-
-    def __FilterDataFast(self):
-        #project data
-        if len(self.data.shape) == 2: #if already 2D, do nothing
-            return self.__FilterData2D(self.data)
-        else:
-            return sum([self.__FilterData2D(self.data[:,:,i]) for i in range(self.data.shape[2])])
+        self.data = data.astype('f').reshape([pixelCount])
 
     def __Debounce(self, xs, ys, radius=4):
         if len(xs) < 2:
@@ -319,12 +285,6 @@ class ObjectIdentifier(list):
                 else:
                     xsd.append(xi)
                     ysd.append(yi)
-        # xsdm = []
-        # ysdm = []
-        # for i in xrange(len(xsd)):
-        #     if (not xsd[i] in xsdm) or (not ysd[i] in ysdm):
-        #         xsdm.append(xsd[i])
-        #         ysdm.append(ysd[i])
 
         return xsd, ysd
 
@@ -412,36 +372,7 @@ class ObjectIdentifier(list):
                 dis = math.sqrt(dis)
         return dis
 
-    def __discardClumped(self, xs, ys, radius=4):
-        if len(xs) < 2:
-            return xs, ys
-
-        kdt = ckdtree.cKDTree(numpy.array([xs,ys]).T)
-
-        xsd = []
-        ysd = []
-
-        for i in xrange(len(xs)):
-            xi = xs[i]
-            yi = ys[i]
-            #neigh = kdt.query_ball_point([xi,yi], radius)
-
-            dn, neigh = kdt.query(numpy.array([xi,yi]), 2)
-            print dn
-
-            if (dn[1] > radius):
-                xsd.append(xi)
-                ysd.append(yi)
-
-        print len(xsd)
-
-        return numpy.array(xsd), numpy.array(ysd)
-
-    def FindObjects(self,
-                    thresholdFactor,
-                    debounceRadius = 4,
-                    maskEdgeWidth = 5,
-                    discardClumpRadius = 0):
+    def FindObjects(self, debounceRadius = 4):
         """Finds point-like objects by subjecting the data to a band-pass filtering (as defined when
         creating the identifier) followed by z-projection and a thresholding procedure where the
         threshold is progressively decreased from a maximum value (half the maximum intensity in the image) to a
@@ -458,153 +389,65 @@ class ObjectIdentifier(list):
         A copy of the filtered image is saved such that subsequent calls to FindObjects with, e.g., a
         different thresholdFactor are faster."""
 
-        #save a copy of the parameters.
-        self.lowerThreshold = thresholdFactor
-
         #clear the list of previously found points
         del self[:]
 
-        # run kernel in device
-        self.clFilteredData = numpy.zeros(pixelCount, 'float32')
-        self.candiPosi = numpy.zeros([maxCount*2], 'float32')
-        self.candiCount = numpy.array(0)
-        self.clBinaryImage = numpy.zeros(pixelCount, 'uint16')
-        self.clLabel = numpy.zeros(pixelCount, 'int32')
+        # allocate memory
+        self.filteredData = numpy.zeros(pixelCount, 'float32')
+        candiPosi = numpy.zeros([maxCount*2], 'float32')
+        candiCount = numpy.array(0)
 
+        # start keeping time
         tStart = time.time()
-        cl.enqueue_copy(commandQueue, cl.memImage, self.clData)
+
+        # copy raw data into device
+        cl.enqueue_copy(commandQueue, cl.memImage, self.data)
         cl.enqueue_copy(commandQueue, cl.memCandiCount, np.array(candiCount)).wait()
 
+        # calculate sigma and threshold
         cl.calcSigmaAndThresholdKernel.enqueue_nd_range(cl.filterKernelGlobalSize, commandQueue, cl.filterKernelLocalSize)
+
+        # filter image by col and row
         cl.colFilterKernel.enqueue_nd_range(cl.filterKernelGlobalSize, commandQueue, cl.filterKernelLocalSize)
         cl.rowFilterKernel.enqueue_nd_range(cl.filterKernelGlobalSize, commandQueue, cl.filterKernelLocalSize)
-        cl.enqueue_copy(commandQueue, self.clFilteredData, cl.memFilteredImage)
-        cl.enqueue_copy(commandQueue, self.clBinaryImage, cl.memBinaryImage)
+        cl.enqueue_copy(commandQueue, self.filteredData, cl.memFilteredImage)
 
+        # label the image
         cl.labelInitKernel.enqueue_nd_range(cl.labelKernelGlobalSize, commandQueue)
         for i in xrange(maxpass):
             cl.labelPropagateKernel.enqueue_nd_range(cl.labelKernelGlobalSize, commandQueue)
-        cl.enqueue_copy(commandQueue, self.clLabel, cl.memLabeledImage)
 
+        # calculate the object to get candidate position
         cl.candiInitKernel.enqueue_nd_range(cl.candiInitKernelGlobalSize, commandQueue)
         cl.candiObjKernel.enqueue_nd_range(cl.candiInitKernelGlobalSize, commandQueue)
         cl.candiMainKernel.enqueue_nd_range(cl.candiMainKernelGlobalSize, commandQueue)
-        cl.enqueue_copy(commandQueue, self.candiPosi, cl.memTempCandiPosi)
-        cl.enqueue_copy(commandQueue, self.candiCount, cl.memCandiCount).wait()
+        cl.enqueue_copy(commandQueue, candiPosi, cl.memTempCandiPosi)
+        cl.enqueue_copy(commandQueue, candiCount, cl.memCandiCount).wait()
+
+        # debounce candidate position
         cl.debounceCandiKernel.enqueue_nd_range(cl.candiMainKernelGlobalSize, commandQueue)
+
+        # stop keeping time and print it
         tEnd = time.time()
         print('>>> Kernel run time is %.2f ms' \
               % ((tEnd - tStart) * 1000))
 
-        # >>>> 1. do filtering
-        self.filteredData = self.__FilterDataFast()
-        self.filteredData *= (self.filteredData > 0)
-
-        # apply mask
-        self.clFilteredData = self.clFilteredData.reshape([md.imageHeight, md.imageWidth])
-        maskedFilteredData = self.filteredData
-        # maskedFilteredData = self.clFilteredData
-
-        # manually mask the edge pixels
-        if maskEdgeWidth and self.filteredData.shape[1] > maskEdgeWidth:
-            maskedFilteredData[:, :maskEdgeWidth] = 0
-            maskedFilteredData[:, -maskEdgeWidth:] = 0
-            maskedFilteredData[-maskEdgeWidth:, :] = 0
-            maskedFilteredData[:maskEdgeWidth, :] = 0
-
-        print '>>> 1. Filter result error:', \
-            np.linalg.norm(self.clFilteredData-maskedFilteredData)
-        diff = self.clFilteredData - maskedFilteredData
-        maxdiff = max(list(diff.reshape([pixelCount])))
-        for i in xrange(md.imageHeight):
-            for j in xrange(md.imageWidth):
-                if diff[i, j] == maxdiff:
-                    print '    Max error in filter is %f, position is [%d, %d].' \
-                          % (maxdiff, i, j)
-
-        X,Y = numpy.mgrid[0:maskedFilteredData.shape[0], 0:maskedFilteredData.shape[1]]
-
-        #store x, y, and thresholds
+        self.filteredData = self.filteredData.reshape([md.imageHeight, md.imageWidth])
         xs = []
         ys = []
-        ts = []
-
-        # >>>> 2. applying threshold
-        im = maskedFilteredData
-        imt = im > self.lowerThreshold
-        climt = self.clBinaryImage.reshape([md.imageHeight, md.imageWidth])
-        print  '>>> 2. Applying threshold error:', np.linalg.norm(imt-climt)
-
-        # >>>> 3. labeling image
-        (labeledPoints, nLabeled) = ndimage.label(imt)
-
-        labelSet = set(self.clLabel)
-        labelList = []
-        for i in labelSet:
-            labelList.append(i)
-        labelList.sort()
-        self.clLabel = self.clLabel.reshape([md.imageHeight, md.imageWidth])
-        for i in xrange(nLabeled):
-            self.clLabel[self.clLabel == labelList[i+1]] = i+1;
-        flag = True
-        for i in xrange(md.imageHeight):
-            for j in xrange(md.imageWidth):
-                if self.clLabel[i,j] != labeledPoints[i,j]:
-                    flag = False
-        if flag:
-            print '>>> 3. Label right!'
-        else:
-            print '>>> 3. Label wrong!'
-
-        objSlices = ndimage.find_objects(labeledPoints)
-
-        # >>>> 4. calculateing candidate position
-        for i in range(nLabeled):
-            #measure position
-            imO = im[objSlices[i]]
-            x = (X[objSlices[i]]*imO).sum()/imO.sum()
-            y = (Y[objSlices[i]]*imO).sum()/imO.sum()
-
-            #and add to list
-            xs.append(x)
-            ys.append(y)
-            ts.append(self.lowerThreshold)
-
-        clxs = []
-        clys = []
-        for i in xrange(nLabeled):
-            clxs.append(self.candiPosi[2 * i])
-            clys.append(self.candiPosi[2 * i + 1])
-
-        flag = True
-        sortedXs = sorted(xs)
-        sortedClxs = sorted(clxs)
-        for i in xrange(nLabeled):
-            index = xs.index(sortedXs[i])
-            clIndex = clxs.index(sortedClxs[i])
-            if abs(sortedXs[i] - sortedClxs[i]) > 0.001 or abs(ys[index] - clys[clIndex]) > 0.001:
-                flag = False
-                break
-        if flag:
-            print '>>> 4. Calculating candidate position right!'
-        else:
-            print '>>> 4. Calculating candidate position wrong!'
-
+        for i in xrange(candiCount):
+            xs.append(candiPosi[2 * i])
+            ys.append(candiPosi[2 * i + 1])
 
         xs = numpy.array(xs)
         ys = numpy.array(ys)
-
-        if discardClumpRadius > 0:
-            print 'ditching clumps'
-            xs, ys = self.__discardClumped(xs, ys, discardClumpRadius)
 
         xs, ys = self.__Debounce(xs, ys, debounceRadius)
 
         # xs, ys = self.Debounce(xs, ys, debounceRadius)
 
-        for x, y, t in zip(xs, ys, ts):
-            self.append(OfindPoint(x,y,t))
-
+        for x, y in zip(xs, ys):
+            self.append(OfindPoint(x,y))
 
         #create pseudo lists to allow indexing along the lines of self.x[i]
         self.x = PseudoPointList(self, 'x')

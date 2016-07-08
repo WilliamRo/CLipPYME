@@ -145,9 +145,7 @@ class Worker:
         discardClumpRadius = self.md.getOrDefault('Analysis.ClumpRejectRadius', 0)
 
         if self.findMethod == 'CLOfind':
-            ofd.FindObjects(self.calcThreshold(sigma),
-                            debounceRadius=debounce,
-                            discardClumpRadius=discardClumpRadius)
+            ofd.FindObjects(debounceRadius=debounce)
         else:
             ofd.FindObjects(self.calcThreshold(sigma), 0,
                         debounceRadius=debounce,
