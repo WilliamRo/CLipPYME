@@ -45,7 +45,7 @@ def getErrorText(index, res, std, res_f, std_f):
 numFramesToAnalyze = 1
 
 fitMod = 'LatGaussFitFR'
-threshold = 1
+threshold = 0.6
 bIndiceRange = [-20, 0]
 
 # > File names
