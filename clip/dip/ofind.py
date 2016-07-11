@@ -9,7 +9,6 @@
 import numpy
 import math
 from scipy import ndimage
-from scipy.ndimage import _nd_image, _ni_support
 from scipy.spatial import ckdtree
 import  numpy as np
 import  clip.cl as cl
@@ -88,7 +87,7 @@ md = clMetadata(170,140,1,0.08,0.08,0.10,True,4,12,9,25,wl,wh,\
 # other parameters
 pixelCount = md.imageWidth * md.imageHeight
 maxCount = 5000
-maxRegionPointNum = 2000
+# maxRegionPointNum = 2000
 maxpass = 10
 candiCount = 0
 typeIntSize = ct.sizeof(ct.c_int32)
@@ -199,7 +198,6 @@ cl.candiMainKernelLocalSize = [1, 1, 1]
 # endregion : set kernel arguments and wotk item dimension
 
 # write metadata into device
-# cl.enqueue_copy(commandQueue, cl.memMetadata, clMetadata)
 cl.enqueue_copy(commandQueue, cl.memMetadata, md)
 
 # endregion : CLOFIND
@@ -231,16 +229,6 @@ class PseudoPointList:
                 tm2.append(it.__dict__[self.varName])
             return tm2
 
-    #def __iter__(self):
-    #    self.curpos = -1
-    #    return self
-
-    #def next(self):
-    #    curpos += 1
-    #    if (curpos >= len(self)):
-    #        raise StopIteration
-    #    return self[self.curpos]
-
 class ObjectIdentifier(list):
     def __init__(self, data):
         """Creates an Identifier object to be used for object finding, takes a 2D or 3D slice
@@ -248,6 +236,8 @@ class ObjectIdentifier(list):
         where "fast" performs a z-projection and then filters, wheras "good" filters in 3D before
         projecting. The parameters filterRadiusLowpass and filterRadiusHighpass control the bandpass filter
         used to identify 'point-like' features. filterRadiusZ is the radius used for the axial smoothing filter"""
+        global filtRadLowpass, filtRadHighpass, weightsLowpass, weightsHighpass
+
         self.data = data.astype('f').reshape([pixelCount])
 
     def __Debounce(self, xs, ys, radius=4):
@@ -285,6 +275,12 @@ class ObjectIdentifier(list):
                 else:
                     xsd.append(xi)
                     ysd.append(yi)
+        # xsdm = []
+        # ysdm = []
+        # for i in xrange(len(xsd)):
+        #     if (not xsd[i] in xsdm) or (not ysd[i] in ysdm):
+        #         xsdm.append(xsd[i])
+        #         ysdm.append(ysd[i])
 
         return xsd, ysd
 
@@ -392,52 +388,101 @@ class ObjectIdentifier(list):
         #clear the list of previously found points
         del self[:]
 
-        # allocate memory
-        self.filteredData = numpy.zeros(pixelCount, 'float32')
-        candiPosi = numpy.zeros([maxCount*2], 'float32')
-        candiCount = numpy.array(0)
+        # run kernel in device
+        self.clFilteredData = numpy.zeros(pixelCount, 'float32')
+        self.candiPosi = numpy.zeros([maxCount*2], 'float32')
+        self.candiCount = numpy.array(0)
+        self.clBinaryImage = numpy.zeros(pixelCount, 'uint16')
+        self.clLabel = numpy.zeros(pixelCount, 'int32')
 
-        # start keeping time
         tStart = time.time()
-
-        # copy raw data into device
         cl.enqueue_copy(commandQueue, cl.memImage, self.data)
         cl.enqueue_copy(commandQueue, cl.memCandiCount, np.array(candiCount)).wait()
 
-        # calculate sigma and threshold
         cl.calcSigmaAndThresholdKernel.enqueue_nd_range(cl.filterKernelGlobalSize, commandQueue, cl.filterKernelLocalSize)
-
-        # filter image by col and row
         cl.colFilterKernel.enqueue_nd_range(cl.filterKernelGlobalSize, commandQueue, cl.filterKernelLocalSize)
         cl.rowFilterKernel.enqueue_nd_range(cl.filterKernelGlobalSize, commandQueue, cl.filterKernelLocalSize)
-        cl.enqueue_copy(commandQueue, self.filteredData, cl.memFilteredImage)
+        cl.enqueue_copy(commandQueue, self.clFilteredData, cl.memFilteredImage)
+        cl.enqueue_copy(commandQueue, self.clBinaryImage, cl.memBinaryImage)
 
-        # label the image
         cl.labelInitKernel.enqueue_nd_range(cl.labelKernelGlobalSize, commandQueue)
         for i in xrange(maxpass):
             cl.labelPropagateKernel.enqueue_nd_range(cl.labelKernelGlobalSize, commandQueue)
+        cl.enqueue_copy(commandQueue, self.clLabel, cl.memLabeledImage)
 
-        # calculate the object to get candidate position
         cl.candiInitKernel.enqueue_nd_range(cl.candiInitKernelGlobalSize, commandQueue)
         cl.candiObjKernel.enqueue_nd_range(cl.candiInitKernelGlobalSize, commandQueue)
         cl.candiMainKernel.enqueue_nd_range(cl.candiMainKernelGlobalSize, commandQueue)
-        cl.enqueue_copy(commandQueue, candiPosi, cl.memTempCandiPosi)
-        cl.enqueue_copy(commandQueue, candiCount, cl.memCandiCount).wait()
-
-        # debounce candidate position
+        cl.enqueue_copy(commandQueue, self.candiPosi, cl.memTempCandiPosi)
+        cl.enqueue_copy(commandQueue, self.candiCount, cl.memCandiCount).wait()
         cl.debounceCandiKernel.enqueue_nd_range(cl.candiMainKernelGlobalSize, commandQueue)
-
-        # stop keeping time and print it
         tEnd = time.time()
         print('>>> Kernel run time is %.2f ms' \
               % ((tEnd - tStart) * 1000))
 
-        self.filteredData = self.filteredData.reshape([md.imageHeight, md.imageWidth])
+        # >>>> 1. do filtering
+        self.filteredData = self.clFilteredData.reshape([md.imageHeight, md.imageWidth])
+
+        # apply mask
+        maskedFilteredData = self.filteredData
+
+        X,Y = numpy.mgrid[0:maskedFilteredData.shape[0], 0:maskedFilteredData.shape[1]]
+
+        #store x, y, and thresholds
         xs = []
         ys = []
-        for i in xrange(candiCount):
-            xs.append(candiPosi[2 * i])
-            ys.append(candiPosi[2 * i + 1])
+
+        # >>>> 2. applying threshold
+        im = maskedFilteredData
+
+        # >>>> 3. labeling image
+        labeledPoints = self.clLabel.reshape([md.imageHeight, md.imageWidth])
+        nLabeled = self.candiCount
+
+        labelSet = set(self.clLabel)
+        labelList = []
+        for i in labelSet:
+            labelList.append(i)
+        labelList.sort()
+        self.clLabel = self.clLabel.reshape([md.imageHeight, md.imageWidth])
+        for i in xrange(nLabeled):
+            self.clLabel[self.clLabel == labelList[i+1]] = i+1;
+
+
+        objSlices = ndimage.find_objects(labeledPoints)
+
+        # >>>> 4. calculateing candidate position
+        for i in range(nLabeled):
+            #measure position
+            imO = im[objSlices[i]]
+            x = (X[objSlices[i]]*imO).sum()/imO.sum()
+            y = (Y[objSlices[i]]*imO).sum()/imO.sum()
+
+            #and add to list
+            xs.append(x)
+            ys.append(y)
+            # ts.append(self.lowerThreshold)
+
+        clxs = []
+        clys = []
+        for i in xrange(nLabeled):
+            clxs.append(self.candiPosi[2 * i])
+            clys.append(self.candiPosi[2 * i + 1])
+
+        flag = True
+        sortedXs = sorted(xs)
+        sortedClxs = sorted(clxs)
+        for i in xrange(nLabeled):
+            index = xs.index(sortedXs[i])
+            clIndex = clxs.index(sortedClxs[i])
+            if abs(sortedXs[i] - sortedClxs[i]) > 0.001 or abs(ys[index] - clys[clIndex]) > 0.001:
+                flag = False
+                break
+        if flag:
+            print '>>> 4. Calculating candidate position right!'
+        else:
+            print '>>> 4. Calculating candidate position wrong!'
+
 
         xs = numpy.array(xs)
         ys = numpy.array(ys)
@@ -448,6 +493,7 @@ class ObjectIdentifier(list):
 
         for x, y in zip(xs, ys):
             self.append(OfindPoint(x,y))
+
 
         #create pseudo lists to allow indexing along the lines of self.x[i]
         self.x = PseudoPointList(self, 'x')
