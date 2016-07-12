@@ -1,8 +1,10 @@
 /***************************************
 This file contain all kernel used in PYME OpenCL version.
-This is a version 0.03
-From HPEC Lab, ZheJiang University, 2016/05/26.
+This is a version 0.05
+From HPEC Lab, ZheJiang University, 2016/07/12.
 ***************************************/
+
+#define Ftype float
 
 #define LOWFILTERLENGTH 9
 #define HIGHFILTERLENGTH 25
@@ -44,12 +46,12 @@ struct Metadata
 	int imageWidth;
 	int imageHeight;
 	int imageDepth;
-	float voxelSizeX; // um
-	float voxelSizeY; // um
-	float voxelSizeZ; // um
+	Ftype voxelSizeX; // um
+	Ftype voxelSizeY; // um
+	Ftype voxelSizeZ; // um
 	bool is2DImage; // 0: 2DImage 1: 3DImage
 
-					// Image filter setting
+	// Image filter setting
 	int filterRadiusLowpass;
 	int filterRadiusHighpass;
 	int lowFilterLength;
@@ -58,21 +60,35 @@ struct Metadata
 	double weightsHigh[HIGHFILTERLENGTH];
 
 	// Camera information
-	float cameraOffset;
-	float cameraNoiseFactor;
-	float cameraElectronsPerCount;
-	float cameraTrueEMGain;
+	Ftype cameraOffset;
+	Ftype cameraNoiseFactor;
+	Ftype cameraElectronsPerCount;
+	Ftype cameraTrueEMGain;
 
 	// Finding setting
-	float debounceRadius;
-	float threshold;
-	float fudgeFactor;
+	Ftype debounceRadius;
+	Ftype threshold;
+	Ftype fudgeFactor;
 	int maskEdgeWidth;
 	bool SNThreshold;
+	
+	// Subtracting background setting
+	int bgStartInd;
+	int bgEndInd;
+	int maxFrameNum;
+	int minBgIndicesLen;
 };
 
+void show(double v, int idx, int idy,
+          const int globalIdx, const int globalIdy, char str)
+{
+    if(globalIdx == idx && globalIdy == idy)
+    {
+      printf("The %c in (%d,%d) is %f.\n", str, idx, idy, v);
+    }
+}
 
-double vectorMulti(float * vectorA, constant double * vectorB, int length)
+double vectorMulti(Ftype * vectorA, constant double * vectorB, int length)
 {
 	double sum = 0;
 	for (int i = 0; i < length; i++)
@@ -82,9 +98,57 @@ double vectorMulti(float * vectorA, constant double * vectorB, int length)
 	return sum;
 }
 
-kernel void colFilterImage(global float * image,
-						   global float * lowFilteredImage,
-						   global float * highFilteredImage,
+kernel void subBgAndCalcSigmaThres(global Ftype * imageStack,
+                                   global Ftype * image,
+							       global Ftype * sigmaMap,
+							       global Ftype * thresholdMap,
+							       global Ftype * varianceMap,
+                                   global int * bufferIndex,
+                                   constant struct Metadata * md)
+{
+    // begin
+    const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
+    int iw = md->imageWidth, ih = md->imageHeight, bInd = bufferIndex[0];
+    if (globalIdx >= ih || globalIdy >= iw) return;
+    int posi = globalIdx * iw + globalIdy, stackPosi = bInd * iw * ih + posi;
+
+    // get image
+    image[posi] = imageStack[stackPosi];
+	
+	// calculate sigma map
+    Ftype n = md->cameraNoiseFactor;
+	Ftype t = md->cameraTrueEMGain;
+	Ftype e = md->cameraElectronsPerCount;
+	varianceMap[posi] = 0; // !!! set variance map to 0 in this version
+	sigmaMap[posi] = sqrt(varianceMap[posi] + (n * n) * \
+	(e * t * MAX(image[posi] - md->cameraOffset, 1.0) + t * t)) / e;
+	// calculate threshold map
+	if (md->SNThreshold)
+		thresholdMap[posi] = sigmaMap[posi] * md->fudgeFactor * md->threshold;
+	else
+		thresholdMap[posi] = md->threshold;
+	
+	// get background index
+	int startInd = MAX(0, bInd + md->bgStartInd);
+	int endInd = MIN(md->maxFrameNum - 1, bInd + md->bgEndInd);
+	Ftype bg = 0;
+	if (endInd - startInd >= md->minBgIndicesLen)
+	{
+		for (int i = startInd; i < endInd; i++)
+			bg = bg + imageStack[i*iw*ih+posi];
+		bg = bg / (endInd - startInd);
+	}
+	else
+		bg = md->cameraOffset;
+	
+	// get subtracted image
+	image[posi] = image[posi] - bg;
+	image[posi] = (image[posi] < 0)? 0 : image[posi];
+}
+
+kernel void colFilterImage(global Ftype * image,
+						   global Ftype * lowFilteredImage,
+						   global Ftype * highFilteredImage,
 						   constant struct Metadata  * md)
 {
 	// begin
@@ -94,8 +158,8 @@ kernel void colFilterImage(global float * image,
 	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
 
 	// define some parameters and get parameters from metadata
-	float lowData[LOWFILTERLENGTH];
-	float highData[HIGHFILTERLENGTH];
+	Ftype lowData[LOWFILTERLENGTH];
+	Ftype highData[HIGHFILTERLENGTH];
 	int temp;
 
 	// low : col
@@ -117,11 +181,11 @@ kernel void colFilterImage(global float * image,
 
 }
 
-kernel void rowFilterImage(global float * lowFilteredImage,
-                           global float * highFilteredImage,
-                           global float * filteredImage,
+kernel void rowFilterImage(global Ftype * lowFilteredImage,
+                           global Ftype * highFilteredImage,
+                           global Ftype * filteredImage,
                            global ushort * binaryImage,
-                           global double * thresholdMap,
+                           global Ftype * thresholdMap,
                            constant struct Metadata  * md)
 {
 	// begin
@@ -131,8 +195,8 @@ kernel void rowFilterImage(global float * lowFilteredImage,
 	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
 
 	// define some parameters and get parameters from metadata
-	float lowData[LOWFILTERLENGTH];
-	float highData[HIGHFILTERLENGTH];
+	Ftype lowData[LOWFILTERLENGTH];
+	Ftype highData[HIGHFILTERLENGTH];
 	int temp;
 
 	// low : row
@@ -153,7 +217,7 @@ kernel void rowFilterImage(global float * lowFilteredImage,
 	barrier(CLK_GLOBAL_MEM_FENCE);
 
 	// get result
-	float filterResult = vectorMulti(lowData, md->weightsLow, LOWFILTERLENGTH) - vectorMulti(highData, md->weightsHigh, HIGHFILTERLENGTH);
+	Ftype filterResult = vectorMulti(lowData, md->weightsLow, LOWFILTERLENGTH) - vectorMulti(highData, md->weightsHigh, HIGHFILTERLENGTH);
 	filterResult = filterResult < 0 ? 0 : filterResult;
 	int mskWid = md->maskEdgeWidth;
 	if (md->imageWidth > mskWid && (globalIdx < mskWid || (md->imageHeight - 1 - globalIdx) < mskWid || globalIdy < mskWid || (md->imageWidth - 1 - globalIdy) < mskWid))
@@ -162,34 +226,6 @@ kernel void rowFilterImage(global float * lowFilteredImage,
 
 	// applying threshold
 	binaryImage[offset] = (filterResult > thresholdMap[offset]) ? 1 : 0;
-
-}
-
-kernel void calcSigmaAndThreshold(global float * image,
-                                  global double * sigmaMap,
-                                  global double * thresholdMap,
-                                  global double * varianceMap,
-                                  constant struct Metadata * md)
-{
-    // begin
-    const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
-    int iw = md->imageWidth, ih = md->imageHeight;
-    if (globalIdx >= ih || globalIdy >= iw) return;
-    int posi = globalIdx * iw + globalIdy;
-
-    // calculate sigma map
-    float n = md->cameraNoiseFactor;
-	float t = md->cameraTrueEMGain;
-	float e = md->cameraElectronsPerCount;
-	varianceMap[posi] = 0; // !!! set variance map to 0 in this version
-	sigmaMap[posi] = sqrt(varianceMap[posi] + (n * n) * \
-	(e * t * MAX(image[posi] - md->cameraOffset, 1.0) + t * t)) / e;
-
-	// calculate threshold map
-	if (md->SNThreshold)
-		thresholdMap[posi] = sigmaMap[posi] * md->fudgeFactor * md->threshold;
-	else
-		thresholdMap[posi] = md->threshold;
 
 }
 
@@ -299,9 +335,9 @@ kernel void getCandiPosiObj(global int * label,
 
 }
 
-kernel void caclCandiPosiMain(global float * filteredImage,
+kernel void caclCandiPosiMain(global Ftype * filteredImage,
 							  global int * candiRegion,
-							  global float * tempCandiPosi,
+							  global Ftype * tempCandiPosi,
 							  global int * count,
 							  constant struct Metadata * md)
 {
@@ -309,7 +345,7 @@ kernel void caclCandiPosiMain(global float * filteredImage,
 	const int idx = get_global_id(0);
 	int candiCount = count[0];
 	if (idx > candiCount-1 || idx > MAXCOUNT) return;
-	float posix = 0, posiy = 0, totalIntensity = 0, I = 0;
+	Ftype posix = 0, posiy = 0, totalIntensity = 0, I = 0;
 
 	for (int i = candiRegion[4*idx]; i < candiRegion[4*idx+2]+1; i++)
 	    for (int j = candiRegion[4*idx+1]; j < candiRegion[4*idx+3]; j++)
@@ -327,17 +363,17 @@ kernel void caclCandiPosiMain(global float * filteredImage,
 
 }
 
-kernel void debounceCandiPosi(global float * filteredImage,
-							  global float * candiPosi,
-							  global float * tempCandiPosi,
+kernel void debounceCandiPosi(global Ftype * filteredImage,
+							  global Ftype * candiPosi,
+							  global Ftype * tempCandiPosi,
 							  global int * count,
 							  constant struct Metadata * md)
 {
 	const int idx = get_global_id(0);
 	int candiCount = count[0];
-	float debounceRadius = md->debounceRadius;
+	Ftype debounceRadius = md->debounceRadius;
 	if (idx > candiCount-1 || idx > MAXCOUNT) return;
-	float posix = 0, posiy = 0;
+	Ftype posix = 0, posiy = 0;
 
 	int neighCount = 0, neighDistance = 0, tempX = (int)posix, tempY = (int)posiy, tempData = 0, maxIntensity = filteredImage[tempX*md->imageWidth+tempY];
 	int neigh[100];
