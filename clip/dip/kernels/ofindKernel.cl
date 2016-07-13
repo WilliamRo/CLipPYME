@@ -329,8 +329,8 @@ kernel void getCandiPosiObj(global int * label,
 	if (order > MAXCOUNT - 1) return;
 
 	atomic_min(&candiRegion[4*order+0],globalIdx);
-    atomic_max(&candiRegion[4*order+1],globalIdy);
-	atomic_min(&candiRegion[4*order+2],globalIdx);
+    atomic_min(&candiRegion[4*order+1],globalIdy);
+	atomic_max(&candiRegion[4*order+2],globalIdx);
 	atomic_max(&candiRegion[4*order+3],globalIdy);
 
 }
@@ -347,8 +347,8 @@ kernel void caclCandiPosiMain(global Ftype * filteredImage,
 	if (idx > candiCount-1 || idx > MAXCOUNT) return;
 	Ftype posix = 0, posiy = 0, totalIntensity = 0, I = 0;
 
-	for (int i = candiRegion[4*idx]; i < candiRegion[4*idx+2]+1; i++)
-	    for (int j = candiRegion[4*idx+1]; j < candiRegion[4*idx+3]; j++)
+	for (int i = candiRegion[4*idx]; i <= candiRegion[4*idx+2]; i++)
+	    for (int j = candiRegion[4*idx+1]; j <= candiRegion[4*idx+3]; j++)
 	    {
             I = filteredImage[i * md->imageWidth + j];
             posix += i * I;
@@ -356,10 +356,8 @@ kernel void caclCandiPosiMain(global Ftype * filteredImage,
             totalIntensity += I;
 	    }
 
-	posix = posix / totalIntensity;
-	posiy = posiy / totalIntensity;
-	tempCandiPosi[2 * idx + 0] = posix;
-	tempCandiPosi[2 * idx + 1] = posiy;
+	tempCandiPosi[2*idx+0] = posix / totalIntensity;
+	tempCandiPosi[2*idx+1] = posiy / totalIntensity;
 
 }
 
@@ -373,7 +371,7 @@ kernel void debounceCandiPosi(global Ftype * filteredImage,
 	int candiCount = count[0];
 	Ftype debounceRadius = md->debounceRadius;
 	if (idx > candiCount-1 || idx > MAXCOUNT) return;
-	Ftype posix = 0, posiy = 0;
+	Ftype posix = tempCandiPosi[2*idx], posiy = tempCandiPosi[2*idx+1];
 
 	int neighCount = 0, neighDistance = 0, tempX = (int)posix, tempY = (int)posiy, tempData = 0, maxIntensity = filteredImage[tempX*md->imageWidth+tempY];
 	int neigh[100];
@@ -403,8 +401,8 @@ kernel void debounceCandiPosi(global Ftype * filteredImage,
 	candiPosi[2 * idx] = posix;
 	candiPosi[2 * idx + 1] = posiy;
 
-	if(idx == 0)
-		count[0] = 0;
+	// if(idx == 0)
+	//	count[0] = 0;
 }
 /* Recycle Code
 */
