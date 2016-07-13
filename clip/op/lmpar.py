@@ -31,78 +31,78 @@ sdiag = None
 
 def lm_lambda(n, r, ldr, ipvt, diag, qtb, delta, lam):
     """
-    Solves the sub-problem in the levenberg-marquardt algorithm.
-     By using the trust region framework, the L-M algorithm can be
-     regarded as solving a set of minimization problems:
+Solves the sub-problem in the levenberg-marquardt algorithm.
+ By using the trust region framework, the L-M algorithm can be
+ regarded as solving a set of minimization problems:
 
-                              2
-          min || J * p + r ||_2     s.t. || D * p || <= Delta
-           p
+                          2
+      min || J * p + r ||_2     s.t. || D * p || <= Delta
+       p
 
-     By introducing a parameter lambda into this sub-problem, the
-     constrained optimization problem can be converted to an
-     unconstrained optimization problem:
+ By introducing a parameter lambda into this sub-problem, the
+ constrained optimization problem can be converted to an
+ unconstrained optimization problem:
 
-             ||   /         J         \       /  r  \  ||
-         min ||  |                    | p +  |      |  ||
-          p  ||  \  sqrt(lambda) * D /       \  0  /   ||
+         ||   /         J         \       /  r  \  ||
+     min ||  |                    | p +  |      |  ||
+      p  ||  \  sqrt(lambda) * D /       \  0  /   ||
 
-     This routine determines the value lambda and as a by-product,
-     it gives a nearly exact solution to the minimization problem
+ This routine determines the value lambda and as a by-product,
+ it gives a nearly exact solution to the minimization problem
 
-     Let a = J, d = D, b = -r, x = p, we denoted the optimization
-     problem as :
+ Let a = J, d = D, b = -r, x = p, we denoted the optimization
+ problem as :
 
-             ||   /         a         \       /  b  \  ||
-         min ||  |                    | x -  |      |  ||
-          x  ||  \  sqrt(lambda) * d /       \  0  /   ||
+         ||   /         a         \       /  b  \  ||
+     min ||  |                    | x -  |      |  ||
+      x  ||  \  sqrt(lambda) * d /       \  0  /   ||
 
 
-    Parameters
-    ----------
-        n: int
-            a positive integer input variable set to the order of r
-        r: ndarray
-            an n by n array. on input the full upper triangle must
-            contain the full upper triangle of the matrix r. on output
-            the full upper triangle is unaltered, and the strict lower
-            triangle contains the strict upper triangle (transposed)
-            of the upper triangular matrix s such that
+Parameters
+----------
+    n: int
+        a positive integer input variable set to the order of r
+    r: ndarray
+        an n by n array. on input the full upper triangle must
+        contain the full upper triangle of the matrix r. on output
+        the full upper triangle is unaltered, and the strict lower
+        triangle contains the strict upper triangle (transposed)
+        of the upper triangular matrix s such that
 
-                    t   t                2     t
-                   P *(J * J + lambda * D ) * P = s * s
+                t   t                2     t
+               P *(J * J + lambda * D ) * P = s * s
 
-        ldr: int
-            a positive integer input variable not less than n which
-            specifies the leading dimension of the array r
-        ipvt: ndarray
-            an integer input array of length n which defines the
-            permutation matrix p such that a*p = q*r. column j of p
-            is column ipvt(j) of the identity matrix
-        diag: ndarray
-            an input array of length n which must contain the diagonal
-            elements of the matrix D
-        qtb: ndarray
-            an input array of length n which must contain the first
-            n elements of the vector (q transpose)*b
-        delta: float
-            a positive input variable which specifies an upper
-            bound on the euclidean norm of D*x
-        lam: float
-            a non-negative variable containing an initial estimate
-            of the levenberg-marquardt parameter.
+    ldr: int
+        a positive integer input variable not less than n which
+        specifies the leading dimension of the array r
+    ipvt: ndarray
+        an integer input array of length n which defines the
+        permutation matrix p such that a*p = q*r. column j of p
+        is column ipvt(j) of the identity matrix
+    diag: ndarray
+        an input array of length n which must contain the diagonal
+        elements of the matrix D
+    qtb: ndarray
+        an input array of length n which must contain the first
+        n elements of the vector (q transpose)*b
+    delta: float
+        a positive input variable which specifies an upper
+        bound on the euclidean norm of D*x
+    lam: float
+        a non-negative variable containing an initial estimate
+        of the levenberg-marquardt parameter.
 
-    Returns
-    -------
-        lam: float
-            final estimate
-        x: ndarray
-            an output array of length n which contains the least
-            squares solution of the system J*x = r, sqrt(lam)*D*x = 0,
-            for the output lam
-        sdiag: ndarray
-            an output array of length n which contains the
-            diagonal elements of the upper triangular matrix s
+Returns
+-------
+    lam: float
+        final estimate
+    x: ndarray
+        an output array of length n which contains the least
+        squares solution of the system J*x = r, sqrt(lam)*D*x = 0,
+        for the output lam
+    sdiag: ndarray
+        an output array of length n which contains the
+        diagonal elements of the upper triangular matrix s
 
     """
 

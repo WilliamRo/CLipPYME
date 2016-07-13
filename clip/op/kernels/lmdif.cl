@@ -134,20 +134,24 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 {
 #pragma region Variable Initialization
 
+	// :: private variables
 	int index = INDEX;
+	int i, j, l;
 
 	real d1, d2;
-
-	int i, j, l;
-	local real par;
-	local int iter;
 	real temp, temp1, temp2, sum;
-	local real loc_temp;
+	real fnorm1, actred;
+	real ratio;
 
+	// :: local variables
+
+	local int iter, flag;
+
+	local real loc_temp;
+	local real par;
 	local real delta;
-	local real ratio;
 	local real fnorm, gnorm;
-	local real pnorm, xnorm, fnorm1, actred, dirder, epsmch, prered;
+	local real pnorm, xnorm, dirder, epsmch, prered;
 
 	if (index == 0)
 	{
@@ -159,7 +163,7 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 	}
 
 	// > check the input parameters for errors
-	if (index == 0)
+	if (index == N)
 		if (N <= 0 || M < N || ldfjac < M || ftol < 0. || xtol < 0. ||
 			gtol < 0. || maxfev <= 0 || factor <= 0.) *info = 0;
 
@@ -169,19 +173,19 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 
 	if (*info >= 0) return;
 
-	if (index == 0) *info = 0;
+	if (index == N) *info = 0;
 
 #pragma endregion
 
 #pragma region Preparation
 
 	fcn_mn(p, x, fvec);  /// less than 5 us
-	if (index == 0) *nfev = 1;
+	if (index == N) *nfev = 1;
 	loc_bar;
 
 	//enorm_p(M, fvec, &fnorm, wa4);		// TODO: SYNC
 
-	if (index == 0)
+	if (index == N)
 	{
 		fnorm = enorm(M, fvec);
 		par = 0.0;
@@ -203,7 +207,7 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 		// > calculate the jacobian matrix 
 		/// about 20 us
 		fdjac2(p, x, fvec, fjac, ldfjac, epsfcn, wa4);
-		if (index == 0) *nfev += N;
+		if (index == N) *nfev += N;
 
 		// > compute the qr factorization of the jacobian
 		/// about 550 us
@@ -269,7 +273,7 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 				loc_bar;
 
 				// >> use one work item to calculate -beta * (v^t * r) 
-				if (index == 0)
+				if (index == N)
 				{
 					sum = 0.0;
 					for (i = j; i < M; ++i)
@@ -283,7 +287,7 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 				if (j <= i)
 					wa4[i] += fjac[i + j * ldfjac] * loc_temp;
 			}
-			if (index == 0)
+			if (index == N)
 			{
 				fjac[j + j * ldfjac] = wa1[j];
 				qtf[j] = wa4[j];
@@ -298,44 +302,42 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 #endif
 #pragma endregion
 
-		if (gtol != 0.0)
+		/// => 646~647 us
+		// > compute the norm of the scaled gradient
+		/// about 45 us
+		if (fnorm != 0.0)
 		{
-			/// => 643 us
-			// > compute the norm of the scaled gradient
-			/// about 45 us
-			if (fnorm != 0.0)
+			j = index;
+			if (index < N)
 			{
-				j = index;
-				if (index < N)
+				l = ipvt[j] - 1;
+				if (wa2[l] != 0.0)
 				{
-					l = ipvt[j] - 1;
-					if (wa2[l] != 0.0)
-					{
-						sum = 0.0;
-						for (i = 0; i <= j; ++i)
-							sum += fjac[i + j * ldfjac] * (qtf[i] / fnorm);
+					sum = 0.0;
+					for (i = 0; i <= j; ++i)
+						sum += fjac[i + j * ldfjac] * (qtf[i] / fnorm);
 
-						wa1[l] = fabs(sum / wa2[l]);
-					}
+					wa1[l] = fabs(sum / wa2[l]);
 				}
 			}
-
-			loc_bar;
-
-			if (index == 0)
-			{
-				for (j = 0; j < N; j++)
-					if (wa1[j] > gnorm)
-						gnorm = wa1[j];
-
-				// > test for convergence of the gradient norm
-				if (gnorm <= gtol) *info = 4;
-			}
-
-			loc_bar;
-
-			if (*info != 0) return;
 		}
+
+		loc_bar;
+
+		if (index == N)
+		{
+			gnorm = 0.0;
+			for (j = 0; j < N; j++)
+				if (wa1[j] > gnorm)
+					gnorm = wa1[j];
+
+			// > test for convergence of the gradient norm
+			if (gnorm <= gtol) *info = 4;
+		}
+
+		loc_bar;  // => 690~691 us
+		
+		if (*info != 0) return;
 
 #pragma region [ Verification ]
 #if 0
@@ -364,7 +366,7 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 				  &par, wa1, wa2, wa3, wa4);
 
 			loc_bar;  /// => 672 us
-			
+
 			j = index;
 			if (j < N) {
 				wa1[j] = -wa1[j];
@@ -373,10 +375,15 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 			}
 
 			loc_bar;  /// => 672 us
-			
-			if (index == N) pnorm = enorm(N, wa3);
-			
-			loc_bar;  /// => 679~680 us
+
+			if (index == N) {
+				pnorm = enorm(N, wa3);
+				// > on the first iteration, adjust the initial step bound
+				// !! private -> local: + 5 us
+				if (iter == 1) delta = min(delta, pnorm);
+			}
+
+			loc_bar;  /// => 686~687 us
 
 #pragma region [ Verification ]
 #if 0
@@ -385,16 +392,167 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 #endif
 #pragma endregion
 
-			break;
+			// > evaluate the function at x + p and calculate its norm
+			fcn_mn(p, wa2, wa4);
+			/// => 689 us
+			if (index == N) {
+				++(*nfev);
+				fnorm1 = enorm(M, wa4);
+				/// => 691 us
+				// > compute the scaled actual reduction
+				actred = -1.0;
+				if (p1 * fnorm1 < fnorm) {
+					// - computing 2nd power 
+					d1 = fnorm1 / fnorm;
+					actred = 1. - d1 * d1;
+				}
+			}
+			loc_bar;	/// !! => 729 us
 
-		} while (ratio < p0001);
+			/* > compute the scaled predicted reduction and the
+				 scaled directional derivative
+
+				:: pre_red = (m(0) - m(p)) / m(0)
+				::              t   t           t
+				::         =  (p * J * J * p + J * r * p) / m(0)
+
+				::              t    t   t           t       t       t
+				:: J = Q * R * P => p * J * J * p = p * P * R * R * P * p
+				::
+				:: m(0) = fnorm * fnorm							*/
+
+			if (index == N) {  /// costs little time, still can be optimized
+				for (j = 0; j < N; ++j) {
+					wa3[j] = 0.;
+					l = ipvt[j] - 1;
+					temp = wa1[l];
+					for (i = 0; i <= j; ++i) {
+						wa3[i] += fjac[i + j * ldfjac] * temp;
+					}
+				}
+			}
+
+			loc_bar;	/// => 732~734
+
+			if (index == N) {
+				temp1 = enorm(N, wa3) / fnorm;
+				temp2 = (sqrt(par) * pnorm) / fnorm;
+				prered = temp1 * temp1 + temp2 * temp2 / p5;
+				dirder = -(temp1 * temp1 + temp2 * temp2);
+
+				// > compute the ratio of the actual to the predicted 
+				//   reduction
+				ratio = 0.0;
+				if (prered != 0.0) ratio = actred / prered;
+				/// => 729~732
+				// > update the step bound
+				if (ratio <= p25) {
+					if (actred >= 0.0) temp = p5;
+					else temp = p5 * dirder / (dirder + p5 * actred);
+					if (p1 * fnorm1 >= fnorm || temp < p1) temp = p1;
+					// > computing min
+					d1 = pnorm / p1;
+					delta = temp * min(delta, d1);
+					par /= temp;
+				}
+				else {
+					if (par == 0.0 || ratio >= p75) {
+						delta = pnorm / p5;
+						par = p5 * par;
+					}
+				}
+				/// => 787~790 !!!
+				flag = ratio >= p0001;
+			}
+
+			loc_bar;
+
+#pragma region [ Verification ]
+#if 0
+			if (index == N) {
+				printf("# prered = %.10f\n", prered);
+				printf("# ratio = %.10f\n", ratio);
+				printf("# actred = %.10f\n", actred);
+		}
+			return;
+#endif
+#pragma endregion
+
+			// > test for successful iteration
+			if (flag) {
+				// successful iteration. update x, fvec, and their norms
+				j = index;
+				if (j < N) {
+					x[j] = wa2[j];
+					wa2[j] = diag[j] * x[j];
+				}
+				fvec[index] = wa4[index];
+
+				loc_bar;
+
+				if (index == N) {
+					xnorm = enorm(N, wa2);
+					fnorm = fnorm1;
+					++iter;
+				}
+			}
+
+			loc_bar;	/// => 787~788 us
+
+			if (index == N) {
+				// > tests for convergence
+				if (fabs(actred) <= ftol && prered <= ftol && p5 * ratio <= 1.) {
+					*info = 1;
+				}
+				if (delta <= xtol * xnorm) {
+					*info = 2;
+				}
+				if (fabs(actred) <= ftol && prered <= ftol && p5 * ratio <= 1. && info == 2) {
+					*info = 3;
+				}
+			}
+
+			loc_bar;   /// => 795~797 us
+			if (*info != 0) return;
+
+			if (index == N)
+			{
+				// > tests for termination and stringent tolerances
+				if (*nfev >= maxfev) {
+					*info = 5;
+				}
+				if (fabs(actred) <= epsmch && prered <= epsmch && p5 * ratio <= 1.) {
+					*info = 6;
+				}
+				if (delta <= epsmch * xnorm) {
+					*info = 7;
+				}
+				if (gnorm <= epsmch) {
+					*info = 8;
+				}
+				flag = ratio < p0001;
+			}
+
+#pragma region [ Verification ]
+#if 0
+			if (index == N) {
+				printf("## info = %d\n", *info);
+				printf("## gnorm = %.10f\n", gnorm);
+			}
+			return;
+#endif
+#pragma endregion
+
+			loc_bar;
+			if (*info != 0) return;
+			
+	} while (flag);
 
 #pragma endregion
 
-		break;
-	}
-
-#pragma endregion
 }
+
+#pragma endregion
+	}
 
 #endif

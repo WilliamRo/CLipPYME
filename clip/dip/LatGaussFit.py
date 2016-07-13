@@ -169,7 +169,8 @@ class GaussianFitFactory:
         y0 = 1e3 * self.metadata.voxelsize.y * y
 
         start_parameters = np.asarray([A, x0, y0, 250 / 2.35,
-                            data_mean.min(), .001, .001], np.float64)
+                                       data_mean.min(), .001, .001],
+                                      np.float64)
 
         # > send data to device
         # TODO: set to CL scope temporarily
@@ -183,10 +184,15 @@ class GaussianFitFactory:
         cl.x0 = cl.create_buffer(cl.am.READ_WRITE,
                                  start_parameters.nbytes)
         cl.x0.enqueue_write(start_parameters)
+        # >> wa
+        wa = np.array([self.data_mean.shape[1], 0], np.int32)
+        cl.wa = cl.create_buffer(cl.am.READ_WRITE,
+                                 wa.nbytes)
+        cl.wa.enqueue_write(wa)
 
         # > do the fit
         # --------------------------------------------------------------
-        if True:
+        if False:
             L = X.size
             m = L * L
             n = 7
@@ -274,16 +280,50 @@ def f_gauss2d(p, X, Y):
 
 def fit_model_weighted(model_fcn, start_parameters,
                        data, sigmas, *args):
-    # std_res = optimize.leastsq(weighted_miss_fit, start_parameters,
-    #                            (model_fcn, data.ravel(), (1.0 / sigmas).
-    #                             astype('float64').ravel()) + args,
-    #                            full_output=1)
-    res = lmdif(weighted_miss_fit, start_parameters,
-                (model_fcn, data.ravel(), (1.0 / sigmas).
-                 astype('f').ravel()) + args,
-                full_output=1)
+    std_res = optimize.leastsq(weighted_miss_fit, start_parameters,
+                               (model_fcn, data.ravel(), (1.0 /
+    sigmas).
+                                astype('f').ravel()) + args,
+                               full_output=1)
 
-    return res
+    # res = lmdif(weighted_miss_fit, start_parameters,
+    #             (model_fcn, data.ravel(), (1.0 / sigmas).
+    #              astype('float64').ravel()) + args,
+    #             full_output=1)
+
+    # res = cl_leastsq(11)
+    #
+    # if True:  # DEBUG
+    #     res[2]['fvec'] = weighted_miss_fit(
+    #         res[0],
+    #         model_fcn,
+    #         data.ravel(),
+    #         (1.0 / sigmas).astype('float64').ravel(),
+    #         *args
+    #     )
+
+    return std_res
+
+
+def cl_leastsq(L):
+    cl.program.fit((L, L),
+                   (cl.data, cl.sigma, cl.X, cl.Y, cl.x0, cl.wa),
+                   (L, L))
+    x = np.zeros(7, np.float64)
+    wa = np.zeros(2, np.int32)
+
+    cl.finish_default_queue()
+
+    cl.x0.enqueue_read(x)
+    cl.wa.enqueue_read(wa)
+
+    # > wrap result
+    dct = {'fjac': None, 'fvec': None, 'ipvt': None,
+           'nfev': wa[1], 'qtf': None}
+    mesg = 'info = %d' % wa[0]
+    ier = wa[0]
+
+    return x, None, dct, mesg, ier
 
 
 def weighted_miss_fit(p, fcn, data, weights, *args):

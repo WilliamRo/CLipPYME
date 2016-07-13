@@ -2,12 +2,23 @@
 #define CL_MINPACK_USER_DEF
 
 /* define data type */
-#define real double
 #define USE_FLOAT_64
+
+#ifdef USE_FLOAT_64
+#define real double
+#else
+#define real float
+#endif
+
 
 #define ROI_L 11
 #define M ROI_L*ROI_L
 #define N 7
+
+/* NDRange Info */
+#define GREAT_M_DIM_2
+
+#define INDEX (gli(0)*ROI_L+gli(1))
 
 /* parameter struct */
 typedef struct
