@@ -20,9 +20,7 @@ void enorm_p(int n, local real *x, local real *norm, local real *wa)
 /*
 */
 {
-	int glb_i = ggi(0);
-	int glb_j = ggi(1);
-	int index = glb_i * ROI_L + glb_j;
+	int index = INDEX;
 
 	if (index < n) wa[index] = x[index] * x[index];
 	loc_bar;

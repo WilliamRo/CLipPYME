@@ -5,31 +5,46 @@
 
 /* SPECIFICATION
 
-clminpack_user_def.h must contain:
+	clminpack_user_def.h must contain:
 
-	1. one of the code blocks below:
+		1. one of the code blocks below:
 
-		#define real double
-		#define USE_FLOAT_64
+			#define USE_FLOAT_64
+			#define real double
 
-		#define real float
-		#define USE_FLOAT_32
+			#define USE_FLOAT_32
+			#define real float
 
-	2. definitions for M and N(<M), e.g.
+		2. definitions for M and N(<M), e.g.
 
-		#define M 10
-		#define N 7
+			#define M 10
+			#define N 7
 
-	3. definition for fcndata, e.g.
+		3. definition for fcndata, e.g.
 
-		typedef struct
-		{
-			real X[N];
-			real Y[N];
-			real y[M];
-			real sigma[M];
+			typedef struct
+			{
+				real X[N];
+				real Y[N];
+				real y[M];
+				real sigma[M];
 
-		} fcndata;
+			} fcndata;
+
+	optional definition:
+
+		1. if M > N * N and work dimension is 2, you can
+
+			 #define GREAT_M_DIM_2
+
+		2. work item local index in one dimension, e.g.
+		  
+		     #define INDEX (gli(0)*ROI_L+gli(1))
+
+		   the default is 
+
+		     #define  INDEX get_local_id(0)
+
 */
 
 #define M_NEXT (1 << (int)rint(log2((float)M)))
@@ -43,14 +58,19 @@ clminpack_user_def.h must contain:
 #define  ggri get_group_id
 #define  ggo  get_global_offset
 
+#ifndef INDEX
+#define  INDEX get_local_id(0)
+#endif
+
 #define loc_bar barrier(CLK_LOCAL_MEM_FENCE)
 #define glb_bar barrier(CLK_GLOBAL_MEM_FENCE)
 
-#define p1 .1
 #define p5 .5
+#define p1 .1
+#define p75 .75
 #define p05 .05
 #define p25 .25
-#define p75 .75
+#define p001 .001
 #define p0001 1e-4
 
 // supplied by user
@@ -73,5 +93,13 @@ void fdjac2(local fcndata *p, local real *x, local real *fvec,
 
 void qrfac(local real *a, int lda, int pivot, local int *ipvt,
 		   local real *rdiag, local real *acnorm, local real *wa);
+
+void lmpar(local real* r, int ldr, local int *ipvt, local real *diag,
+		   local real *qtb, real delta, local real *par, local real *x,
+		   local real *sdiag, local real *wa1, local real *wa2);
+
+void qrsolv(local real *r, int ldr, local int *ipvt, local real *diag,
+			local real *qtb, local real *x, local real *sdiag,
+			local real *wa);
 
 #endif // !CL_MINPACK

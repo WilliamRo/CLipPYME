@@ -77,11 +77,11 @@ void qrsolv(local real *r, int ldr, local int *ipvt,
 
 	int i, j, k, l;
 	real sum, temp;
-	int nsing;
 	real qtbpj;
 
 	// :: local variables
 	local real cos, sin;
+	local int nsing;
 
 #pragma endregion
 
@@ -136,12 +136,13 @@ void qrsolv(local real *r, int ldr, local int *ipvt,
 				qtbpj = 0.0;
 			}
 
-			loc_bar;  /// 705~708 us
-
 			/* > the transformations to eliminate the row of d
 				 modify only a single element of (q transpose)*b
 				 beyond the first N, which is initially zero.    */
 			for (k = j; k < N; ++k) {
+
+				loc_bar;  /// 705~708 us
+
 				/* > determine a givens rotation which eliminates the
 					 appropriate element in the current row of d. */
 				if (sdiag[k] != 0.0) {
@@ -167,16 +168,18 @@ void qrsolv(local real *r, int ldr, local int *ipvt,
 						/// 722~724 us [private & local issue]
 						r[k + k * ldr] = cos * r[k + k * ldr] + sin * sdiag[k];
 					}
+
 					loc_bar;  /// 725~727 us
+
 					i = index;
 					if (N > k + 1 && k < i && i < N) {
 						temp = cos * r[i + k * ldr] + sin * sdiag[i];
-						/*
+						/* UNDER SOME PRECONDITION
 							On NVDIA 980M GPU, in routine
 
 							  sdiag[i] = -sin * r[i + k * ldr] + cos * sdiag[i];
 
-							 local sdiag will cost about 45 us more than 
+							 local sdiag will cost about 45 us more than
 							 private sdiag. Notice that if sdiag is private,
 							 all time span in this kernel till this line is
 							 about merely 20 us.
@@ -187,7 +190,93 @@ void qrsolv(local real *r, int ldr, local int *ipvt,
 				}
 			}
 		}
+
+		/// 770 us
+		loc_bar;
+		/* > store the diagonal element of s and restore
+			 the corresponding diagonal element of r     */
+		if (index == N) {
+			sdiag[j] = r[j + j * ldr];
+			r[j + j * ldr] = x[j];
+		}
 	}
+
+#pragma endregion
+
+#pragma region Solve System
+
+	/* > solve the triangular system for z. if the system is singular,
+		 then obtain a least squares solution
+						  t
+	 :: r * z = qtb, z = p * x and qtb is stored in wa          */
+
+	loc_bar;  /// 774 us
+
+	if (index == N) {
+		nsing = N;
+		for (j = 0; j < N; ++j) {
+			if (sdiag[j] == 0. && nsing == N) {
+				nsing = j;
+			}
+			if (nsing < N) {
+				wa[j] = 0.0;
+			}
+		}
+		/*
+		if (nsing >= 1) {
+			for (k = 1; k <= nsing; ++k) {
+				j = nsing - k;
+				sum = 0.;
+				if (nsing > j + 1) {
+					for (i = j + 1; i < nsing; ++i) {
+						sum += r[i + j * ldr] * wa[i];
+					}
+				}
+				wa[j] = (wa[j] - sum) / sdiag[j];
+			}
+		}*/
+	}
+
+	loc_bar;  /// 770 us ???
+
+	if (nsing >= 1) {
+		for (k = 1; k <= nsing; ++k) {
+
+			loc_bar;
+
+			j = nsing - k;
+			if (index == N) wa[j] /= sdiag[j];
+
+			loc_bar;
+
+			if (0 <= index && index < j)
+				wa[index] -= wa[j] * r[j + index * ldr];
+		}
+	}
+
+	loc_bar;
+
+#pragma region [ Verification ]
+#if 0
+	//if (index == N)
+	//	printf("# nsing = %d\n", nsing);
+	if (index < N) {
+		printf("# wa[%d] = %.10f\n", index, wa[index]);
+	}
+	return;
+#endif
+#pragma endregion
+
+	/// 777 us
+
+	// > permute the components of z back to components of x
+	j = index;
+	if (j < N) {
+		l = ipvt[j] - 1;
+		x[l] = wa[j];
+	}
+
+	/// 772 us ???
 
 #pragma endregion
 }

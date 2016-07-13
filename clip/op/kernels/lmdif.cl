@@ -134,9 +134,7 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 {
 #pragma region Variable Initialization
 
-	int glb_i = ggi(0);
-	int glb_j = ggi(1);
-	int index = glb_i * ROI_L + glb_j;
+	int index = INDEX;
 
 	real d1, d2;
 
@@ -361,9 +359,34 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 
 		do
 		{
+			// > determine the levenberg-marquardt parameter
+			lmpar(fjac, ldfjac, ipvt, diag, qtf, delta,
+				  &par, wa1, wa2, wa3, wa4);
 
+			loc_bar;  /// => 672 us
+			
+			j = index;
+			if (j < N) {
+				wa1[j] = -wa1[j];
+				wa2[j] = x[j] + wa1[j];
+				wa3[j] = diag[j] * wa1[j];
+			}
+
+			loc_bar;  /// => 672 us
+			
+			if (index == N) pnorm = enorm(N, wa3);
+			
+			loc_bar;  /// => 679~680 us
+
+#pragma region [ Verification ]
+#if 0
+			if (index == N)
+				printf("# pnorm = %.10f\n", pnorm);
+#endif
+#pragma endregion
 
 			break;
+
 		} while (ratio < p0001);
 
 #pragma endregion

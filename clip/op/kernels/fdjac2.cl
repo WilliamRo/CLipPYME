@@ -44,9 +44,7 @@ void fdjac2(local fcndata *p, local real *x,
 		a work array										*/
 {
 	// declare variables
-	int glb_i = ggi(0);
-	int glb_j = ggi(1);
-	int index = glb_i * ROI_L + glb_j;
+	int index = INDEX;
 	
 	local real h;
 	local real eps, temp, epsmch;

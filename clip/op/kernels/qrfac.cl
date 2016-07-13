@@ -6,10 +6,11 @@
 // [Verified]
 void qrfac(local real *a, int lda, int pivot, local int *ipvt,
 		   local real *rdiag, local real *acnorm, local real *wa)
-	/*
-	uses householder transformations with column
+	/* QRFAC
+
+	Uses householder transformations with column
 	 pivoting (optional) to compute a qr factorization of the
-	 m by n matrix a. that is, qrfac determines an orthogonal
+	 m by n matrix a. That is, qrfac determines an orthogonal
 	 matrix q, a permutation matrix p, and an upper trapezoidal
 	 matrix r with diagonal elements of nonincreasing magnitude,
 	 such that a*p = q*r. the householder transformation for
@@ -56,9 +57,7 @@ void qrfac(local real *a, int lda, int pivot, local int *ipvt,
 {
 #pragma region Variable Initialization
 
-	int glb_i = ggi(0);
-	int glb_j = ggi(1);
-	int index = glb_i * ROI_L + glb_j;
+	int index = INDEX;
 
 	real d1;
 	int i, j, k, jp1;
