@@ -9,8 +9,8 @@ From HPEC Lab, ZheJiang University, 2016/07/12.
 #define LOWFILTERLENGTH 9
 #define HIGHFILTERLENGTH 25
 
-#define MIN(x, y) ((x < y)? x : y)
-#define MAX(x, y) ((x > y)? x : y)
+#define MIN(x, y) ((x < y)? (x) : (y))
+#define MAX(x, y) ((x > y)? (x) : (y))
 
 #define BGCOLOUR 0
 #define MAXLABELPASS 10
@@ -18,8 +18,8 @@ From HPEC Lab, ZheJiang University, 2016/07/12.
 #define MAXCOUNT 5000
 #define MAXREGIONPOINT 2000
 
-#define IMAGEBOUNDAY(x, y) x = (x < 0)? -x - 1 : x; \
-						   x = (x >= y)? 2 * y - x - 1 : x;
+#define IMAGEBOUNDAY(x, y) x = ((x) < 0)? -(x) - 1 : (x); \
+						   x = ((x) >= (y))? 2 * (y) - (x) - 1 : (x);
 
 #define KERNELBEGIN const int globalIdx = get_global_id(0);\
 					const int globalIdy = get_global_id(1);\
@@ -31,14 +31,6 @@ From HPEC Lab, ZheJiang University, 2016/07/12.
 					const int localIdy = get_local_id(1);\
 					const int groupNumx = get_num_groups(0);\
 					const int groupNumy = get_num_groups(1);\
-
-#define GETREALPOSI(t, idx, idy) t = ((idx >= 0 && idx < globalSizeX)? idx : ((idx < 0)? 0 : globalSizeX - 1)) * globalSizeY + ((idy >= 0 && idy < globalSizeY)? idy : ((idy < 0)? 0 : globalSizeY - 1))
-
-#define SYNCGROUP 	if (localIdx == 0 && localIdy == 0 && atom_inc(&syncIndex[1]) == groupNumx * groupNumy - 1)\
-						{\
-							syncIndex[0] += 1;\
-							syncIndex[1] = 0;\
-						}
 
 struct Metadata
 {
@@ -56,8 +48,8 @@ struct Metadata
 	int filterRadiusHighpass;
 	int lowFilterLength;
 	int highFilterLength;
-	double weightsLow[LOWFILTERLENGTH];
-	double weightsHigh[HIGHFILTERLENGTH];
+	Ftype weightsLow[LOWFILTERLENGTH];
+	Ftype weightsHigh[HIGHFILTERLENGTH];
 
 	// Camera information
 	Ftype cameraOffset;
@@ -78,25 +70,16 @@ struct Metadata
 	int maxFrameNum;
 	int minBgIndicesLen;
 };
-
-void show(double v, int idx, int idy,
-          const int globalIdx, const int globalIdy, char str)
+/*
+Ftype vectorMulti(Ftype * vectorA, constant Ftype * vectorB, int length)
 {
-    if(globalIdx == idx && globalIdy == idy)
-    {
-      printf("The %c in (%d,%d) is %f.\n", str, idx, idy, v);
-    }
-}
-
-double vectorMulti(Ftype * vectorA, constant double * vectorB, int length)
-{
-	double sum = 0;
+	Ftype sum = 0;
 	for (int i = 0; i < length; i++)
 	{
 		sum += vectorA[i] * vectorB[i];
 	}
 	return sum;
-}
+}*/
 
 kernel void subBgAndCalcSigmaThres(global Ftype * imageStack,
                                    global Ftype * image,
@@ -152,32 +135,38 @@ kernel void colFilterImage(global Ftype * image,
 						   constant struct Metadata  * md)
 {
 	// begin
-	KERNELBEGIN
+	const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
 	// get real position in array
-	int offset = globalIdx * md->imageWidth + globalIdy;
+	int posi = globalIdx * md->imageWidth + globalIdy;
 	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
 
 	// define some parameters and get parameters from metadata
-	Ftype lowData[LOWFILTERLENGTH];
-	Ftype highData[HIGHFILTERLENGTH];
+	// Ftype lowData[LOWFILTERLENGTH];
+	// Ftype highData[HIGHFILTERLENGTH];
 	int temp;
+	Ftype resTemp = 0;
 
 	// low : col
 	for (int i = 0; i < LOWFILTERLENGTH; i++)
 	{
 		temp = globalIdx + (i - md->filterRadiusLowpass);
 		IMAGEBOUNDAY(temp, md->imageHeight)
-		lowData[i] = image[temp * md->imageWidth + globalIdy];
+		//lowData[i] = image[temp * md->imageWidth + globalIdy];
+		resTemp += image[temp * md->imageWidth + globalIdy] * md->weightsLow[i];
 	}
-	lowFilteredImage[offset] = vectorMulti(lowData, md->weightsLow, LOWFILTERLENGTH);
+	//lowFilteredImage[posi] = vectorMulti(lowData, md->weightsLow, LOWFILTERLENGTH);
+	lowFilteredImage[posi] = resTemp;
 	// high : col
+	resTemp = 0;
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
 		temp = globalIdx + (i - md->filterRadiusHighpass);
 		IMAGEBOUNDAY(temp, md->imageHeight)
-		highData[i] = image[temp * md->imageWidth + globalIdy];
+		// highData[i] = image[temp * md->imageWidth + globalIdy];
+		resTemp += image[temp * md->imageWidth + globalIdy] * md->weightsHigh[i];
 	}
-	highFilteredImage[offset] = vectorMulti(highData, md->weightsHigh, HIGHFILTERLENGTH);
+	//highFilteredImage[posi] = vectorMulti(highData, md->weightsHigh, HIGHFILTERLENGTH);
+	highFilteredImage[posi] = resTemp;
 
 }
 
@@ -191,20 +180,22 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 	// begin
 	KERNELBEGIN
 	// get real position in array
-	int offset = globalIdx * md->imageWidth + globalIdy;
+	int posi = globalIdx * md->imageWidth + globalIdy;
 	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
 
 	// define some parameters and get parameters from metadata
 	Ftype lowData[LOWFILTERLENGTH];
 	Ftype highData[HIGHFILTERLENGTH];
 	int temp;
+	Ftype filterResult = 0;
 
 	// low : row
 	for (int i = 0; i < LOWFILTERLENGTH; i++)
 	{
 		temp = globalIdy + (i - md->filterRadiusLowpass);
 		IMAGEBOUNDAY(temp, md->imageWidth)
-		lowData[i] = lowFilteredImage[globalIdx * md->imageWidth + temp];
+		// lowData[i] = lowFilteredImage[globalIdx * md->imageWidth + temp];
+		filterResult += lowFilteredImage[globalIdx * md->imageWidth + temp] * md->weightsLow[i];
 	}
 
 	// high : row
@@ -212,20 +203,22 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 	{
 		temp = globalIdy + (i - md->filterRadiusHighpass);
 		IMAGEBOUNDAY(temp, md->imageWidth)
-		highData[i] = highFilteredImage[globalIdx * md->imageWidth + temp];
+		// highData[i] = highFilteredImage[globalIdx * md->imageWidth + temp];
+		filterResult -= highFilteredImage[globalIdx * md->imageWidth + temp] * md->weightsHigh[i];
 	}
-	barrier(CLK_GLOBAL_MEM_FENCE);
+	 barrier(CLK_GLOBAL_MEM_FENCE);
 
 	// get result
-	Ftype filterResult = vectorMulti(lowData, md->weightsLow, LOWFILTERLENGTH) - vectorMulti(highData, md->weightsHigh, HIGHFILTERLENGTH);
+	// filterResult = vectorMulti(lowData, md->weightsLow, LOWFILTERLENGTH) - vectorMulti(highData, md->weightsHigh, HIGHFILTERLENGTH);
 	filterResult = filterResult < 0 ? 0 : filterResult;
 	int mskWid = md->maskEdgeWidth;
-	if (md->imageWidth > mskWid && (globalIdx < mskWid || (md->imageHeight - 1 - globalIdx) < mskWid || globalIdy < mskWid || (md->imageWidth - 1 - globalIdy) < mskWid))
+	if (md->imageWidth > mskWid && \
+		(globalIdx < mskWid || (md->imageHeight - 1 - globalIdx) < mskWid || globalIdy < mskWid || (md->imageWidth - 1 - globalIdy) < mskWid))
 		filterResult = 0;
-	filteredImage[offset] = filterResult;
+	filteredImage[posi] = filterResult;
 
 	// applying threshold
-	binaryImage[offset] = (filterResult > thresholdMap[offset]) ? 1 : 0;
+	binaryImage[posi] = (filterResult > thresholdMap[posi]) ? 1 : 0;
 
 }
 
