@@ -70,16 +70,6 @@ struct Metadata
 	int maxFrameNum;
 	int minBgIndicesLen;
 };
-/*
-Ftype vectorMulti(Ftype * vectorA, constant Ftype * vectorB, int length)
-{
-	Ftype sum = 0;
-	for (int i = 0; i < length; i++)
-	{
-		sum += vectorA[i] * vectorB[i];
-	}
-	return sum;
-}*/
 
 kernel void subBgAndCalcSigmaThres(global Ftype * imageStack,
                                    global Ftype * image,
@@ -141,32 +131,26 @@ kernel void colFilterImage(global Ftype * image,
 	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
 
 	// define some parameters and get parameters from metadata
-	// Ftype lowData[LOWFILTERLENGTH];
-	// Ftype highData[HIGHFILTERLENGTH];
 	int temp;
-	Ftype resTemp = 0;
+	Ftype filterResult = 0;
 
 	// low : col
 	for (int i = 0; i < LOWFILTERLENGTH; i++)
 	{
 		temp = globalIdx + (i - md->filterRadiusLowpass);
 		IMAGEBOUNDAY(temp, md->imageHeight)
-		//lowData[i] = image[temp * md->imageWidth + globalIdy];
-		resTemp += image[temp * md->imageWidth + globalIdy] * md->weightsLow[i];
+		filterResult += image[temp * md->imageWidth + globalIdy] * md->weightsLow[i];
 	}
-	//lowFilteredImage[posi] = vectorMulti(lowData, md->weightsLow, LOWFILTERLENGTH);
-	lowFilteredImage[posi] = resTemp;
+	lowFilteredImage[posi] = filterResult;
 	// high : col
-	resTemp = 0;
+	filterResult = 0;
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
 		temp = globalIdx + (i - md->filterRadiusHighpass);
 		IMAGEBOUNDAY(temp, md->imageHeight)
-		// highData[i] = image[temp * md->imageWidth + globalIdy];
-		resTemp += image[temp * md->imageWidth + globalIdy] * md->weightsHigh[i];
+		filterResult += image[temp * md->imageWidth + globalIdy] * md->weightsHigh[i];
 	}
-	//highFilteredImage[posi] = vectorMulti(highData, md->weightsHigh, HIGHFILTERLENGTH);
-	highFilteredImage[posi] = resTemp;
+	highFilteredImage[posi] = filterResult;
 
 }
 
@@ -178,14 +162,12 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
                            constant struct Metadata  * md)
 {
 	// begin
-	KERNELBEGIN
+	const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
 	// get real position in array
 	int posi = globalIdx * md->imageWidth + globalIdy;
 	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
 
 	// define some parameters and get parameters from metadata
-	Ftype lowData[LOWFILTERLENGTH];
-	Ftype highData[HIGHFILTERLENGTH];
 	int temp;
 	Ftype filterResult = 0;
 
@@ -194,7 +176,6 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 	{
 		temp = globalIdy + (i - md->filterRadiusLowpass);
 		IMAGEBOUNDAY(temp, md->imageWidth)
-		// lowData[i] = lowFilteredImage[globalIdx * md->imageWidth + temp];
 		filterResult += lowFilteredImage[globalIdx * md->imageWidth + temp] * md->weightsLow[i];
 	}
 
@@ -203,14 +184,12 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 	{
 		temp = globalIdy + (i - md->filterRadiusHighpass);
 		IMAGEBOUNDAY(temp, md->imageWidth)
-		// highData[i] = highFilteredImage[globalIdx * md->imageWidth + temp];
 		filterResult -= highFilteredImage[globalIdx * md->imageWidth + temp] * md->weightsHigh[i];
 	}
-	 barrier(CLK_GLOBAL_MEM_FENCE);
+	// barrier(CLK_GLOBAL_MEM_FENCE);
 
 	// get result
-	// filterResult = vectorMulti(lowData, md->weightsLow, LOWFILTERLENGTH) - vectorMulti(highData, md->weightsHigh, HIGHFILTERLENGTH);
-	filterResult = filterResult < 0 ? 0 : filterResult;
+                                                                                      	filterResult = filterResult < 0 ? 0 : filterResult;
 	int mskWid = md->maskEdgeWidth;
 	if (md->imageWidth > mskWid && \
 		(globalIdx < mskWid || (md->imageHeight - 1 - globalIdx) < mskWid || globalIdy < mskWid || (md->imageWidth - 1 - globalIdy) < mskWid))

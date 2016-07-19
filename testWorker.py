@@ -45,11 +45,12 @@ def getErrorText(index, res, std, res_f, std_f):
 numFramesToAnalyze = 1
 
 fitMod = 'LatGaussFitFR'
-threshold = 0.6
+threshold = 1.0
 bIndiceRange = [-20, 0]
 
 # > File names
-filename = r'data\100x140x170.tif'
+filename = r'data\1004x1002.tif'
+# filename = r'data\100x170x140.tif'
 
 # > Metadata
 metadata = NestedClassMDHandler()
@@ -90,8 +91,11 @@ fn, numFramesToAnalyze)
 veriFilename = r'DH5Files\veri_%s_%d.txt' % (fn, numFramesToAnalyze)
 
 # > read frames with shape (slices, width, height) from file
-frames = TIFFfile(filename).asarray()
+frames = np.array([p.asarray(False, False) for p in TIFFfile(filename).series[0].pages]).squeeze()
+if len(frames.shape) is 2:
+    frames = frames.reshape(1, *frames.shape)
 numSlices = frames.shape[0]
+
 print('>>> Loaded frames from %s' % filename)
 
 # > generate indices
@@ -225,7 +229,7 @@ else:
     print('>>> Created verification file %s, errCount: %d (max: %d)' \
           % (veriFilename, errCount, maxCount))
 
-if True and errCount: os.startfile(veriFilename)
+if False and errCount: os.startfile(veriFilename)
 
 # endregion : Verify
 
