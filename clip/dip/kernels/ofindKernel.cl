@@ -50,6 +50,7 @@ struct Metadata
 	int highFilterLength;
 	Ftype weightsLow[LOWFILTERLENGTH];
 	Ftype weightsHigh[HIGHFILTERLENGTH];
+	Ftype weights[HIGHFILTERLENGTH];
 
 	// Camera information
 	Ftype cameraOffset;
@@ -119,6 +120,56 @@ kernel void subBgAndCalcSigmaThres(global Ftype * imageStack,
 	image[posi] = (image[posi] < 0)? 0 : image[posi];
 }
 
+kernel void padImage(global Ftype * image,
+							   global Ftype * paddedImage,
+							   constant struct Metadata * md)
+{
+	// begin
+	int2 id = {get_global_id(0), get_global_id(1)};
+	// get real position
+	int ih = md->imageHeight, iw = md->imageWidth, halflen = md->filterRadiusHighpass, \
+		padlen = 2 * halflen;
+	if (id.x >= ih + padlen || id.y >= iw + padlen)
+		return;
+	int padposi = id.x * (iw + padlen) + id.y;
+	id.x = (id.x < ih + halflen)? abs(id.x - halflen) : (ih - abs(id.x - ih));
+	id.y = (id.y < iw + halflen)? abs(id.y - halflen) : (iw - abs(id.y - iw));
+	paddedImage[padposi] = image[id.x * iw + id.y];
+}
+
+kernel void filterImage(global Ftype * paddedImage,
+								global Ftype * filteredImage,
+								global Ftype * binaryImage,
+								global Ftype * thresholdMap,
+								constant struct Metadata * md)
+{
+	// begin
+	const int2 id = {get_global_id(0), get_global_id(1)};
+	// get real position in array
+	int ih = md->imageHeight, iw = md->imageWidth, halflen = md->filterRadiusHighpass,\
+		posi = id.x * iw + id.y, padiw = iw + 2 * halflen;
+	if (id.y >= iw || id.x >= ih) return;
+	int2 padId = id + (int2)(halflen, halflen);
+	
+	// convolution
+	Ftype filterResult = 0;
+	int count = 0;
+	for (int i = -halflen; i <= halflen; i++)
+		for (int j = -halflen; j<= halflen; j++)
+			filterResult += (paddedImage[(padId.x+i)*padiw+padId.y+j] * md->weights[count++]);
+	
+	// get result
+	 filterResult = filterResult < 0 ? 0 : filterResult;
+	int mskWid = md->maskEdgeWidth;
+	if (iw > mskWid && \
+		(id.x < mskWid || (ih - 1 - id.x) < mskWid || id.y < mskWid || (iw - 1 - id.y) < mskWid))
+		filterResult = 0;
+	filteredImage[posi] = filterResult;
+
+	// applying threshold
+	binaryImage[posi] = (filterResult > thresholdMap[posi]) ? 1 : 0;
+}
+
 kernel void colFilterImage(global Ftype * image,
 						   global Ftype * lowFilteredImage,
 						   global Ftype * highFilteredImage,
@@ -127,30 +178,23 @@ kernel void colFilterImage(global Ftype * image,
 	// begin
 	const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
 	// get real position in array
-	int posi = globalIdx * md->imageWidth + globalIdy;
+	int  iw = md->imageWidth, ih = md->imageHeight, filterRadius = md->filterRadiusHighpass, \
+		posi = globalIdx * iw + globalIdy;
 	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
 
 	// define some parameters and get parameters from metadata
 	int temp;
-	Ftype filterResult = 0;
+	Ftype filterResult[2] = {0, 0};
 
-	// low : col
-	for (int i = 0; i < LOWFILTERLENGTH; i++)
-	{
-		temp = globalIdx + (i - md->filterRadiusLowpass);
-		IMAGEBOUNDAY(temp, md->imageHeight)
-		filterResult += image[temp * md->imageWidth + globalIdy] * md->weightsLow[i];
-	}
-	lowFilteredImage[posi] = filterResult;
-	// high : col
-	filterResult = 0;
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
-		temp = globalIdx + (i - md->filterRadiusHighpass);
-		IMAGEBOUNDAY(temp, md->imageHeight)
-		filterResult += image[temp * md->imageWidth + globalIdy] * md->weightsHigh[i];
+		temp = globalIdx + (i - filterRadius);
+		IMAGEBOUNDAY(temp, ih)
+		filterResult[0] += image[temp * iw + globalIdy] * md->weights[i];
+		filterResult[1] += image[temp * iw + globalIdy] * md->weightsHigh[i];
 	}
-	highFilteredImage[posi] = filterResult;
+	lowFilteredImage[posi] = filterResult[0];
+	highFilteredImage[posi] = filterResult[1];
 
 }
 
@@ -164,35 +208,28 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 	// begin
 	const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
 	// get real position in array
-	int posi = globalIdx * md->imageWidth + globalIdy;
-	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
-
+	int iw = md->imageWidth, ih = md->imageHeight, filterRadius = md->filterRadiusHighpass, \
+		posi = globalIdx * iw + globalIdy;
+	if (globalIdy >= iw || globalIdx >= ih) return;
+		
 	// define some parameters and get parameters from metadata
 	int temp;
 	Ftype filterResult = 0;
 
-	// low : row
-	for (int i = 0; i < LOWFILTERLENGTH; i++)
-	{
-		temp = globalIdy + (i - md->filterRadiusLowpass);
-		IMAGEBOUNDAY(temp, md->imageWidth)
-		filterResult += lowFilteredImage[globalIdx * md->imageWidth + temp] * md->weightsLow[i];
-	}
-
 	// high : row
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
-		temp = globalIdy + (i - md->filterRadiusHighpass);
-		IMAGEBOUNDAY(temp, md->imageWidth)
-		filterResult -= highFilteredImage[globalIdx * md->imageWidth + temp] * md->weightsHigh[i];
+		temp = globalIdy + (i - filterRadius);
+		IMAGEBOUNDAY(temp, iw)
+		filterResult += lowFilteredImage[globalIdx * iw + temp] * md->weights[i];
+		filterResult -= highFilteredImage[globalIdx * iw + temp] * md->weightsHigh[i];
 	}
-	// barrier(CLK_GLOBAL_MEM_FENCE);
 
 	// get result
-                                                                                      	filterResult = filterResult < 0 ? 0 : filterResult;
+	 filterResult = filterResult < 0 ? 0 : filterResult;
 	int mskWid = md->maskEdgeWidth;
 	if (md->imageWidth > mskWid && \
-		(globalIdx < mskWid || (md->imageHeight - 1 - globalIdx) < mskWid || globalIdy < mskWid || (md->imageWidth - 1 - globalIdy) < mskWid))
+		(globalIdx < mskWid || (ih - 1 - globalIdx) < mskWid || globalIdy < mskWid || (iw - 1 - globalIdy) < mskWid))
 		filterResult = 0;
 	filteredImage[posi] = filterResult;
 
