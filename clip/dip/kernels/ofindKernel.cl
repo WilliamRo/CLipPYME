@@ -5,6 +5,7 @@ From HPEC Lab, ZheJiang University, 2016/07/12.
 ***************************************/
 
 #define Ftype float
+#define Ftype4 float4
 
 #define LOWFILTERLENGTH 9
 #define HIGHFILTERLENGTH 25
@@ -117,7 +118,7 @@ kernel void subBgAndCalcSigmaThres(global Ftype * imageStack,
 	
 	// get subtracted image
 	image[posi] = image[posi] - bg;
-	image[posi] = (image[posi] < 0)? 0 : image[posi];
+	image[posi] = select(image[posi], (float)0.0, isless(image[posi], (float)0.0));
 }
 
 kernel void padImage(global Ftype * image,
@@ -170,7 +171,40 @@ kernel void filterImage(global Ftype * paddedImage,
 	binaryImage[posi] = (filterResult > thresholdMap[posi]) ? 1 : 0;
 }
 
+#define GETIM(idx, idy) (Ftype4){image[idx+idy.S0],\
+								 image[idx+idy.S1],\
+								 image[idx+idy.S2],\
+								 image[idx+idy.S3]}
+
 kernel void colFilterImage(global Ftype * image,
+						   global Ftype4 * lowFilteredImage,
+						   global Ftype4 * highFilteredImage,
+						   constant struct Metadata * md)
+{
+	// begin
+	const int2 id = {get_global_id(0), get_global_id(1)};
+	int iw = md->imageWidth, ih = md->imageHeight;
+	if (id.x >= ih || 4*id.y >= iw) return;
+
+	// define parameters
+	int temp;
+	int4 offset = {0, 1, 2, 3}, idy =  (int4)4*id.y + offset;
+	Ftype4 lowFilterResult = {0, 0, 0, 0}, highFilterResult = {0, 0, 0, 0};
+
+	// convolution
+	for (int i = 0; i < HIGHFILTERLENGTH; i++)
+	{
+		temp = id.x + (i - md->filterRadiusHighpass);
+		temp = select(temp, -temp-1, isless(temp, (Ftype)0));
+		temp = select(2*ih-temp-1, temp, isless(temp, (Ftype)ih)) * iw;
+		lowFilterResult += GETIM(temp, idy) * (Ftype4)(md->weights[i]);
+		highFilterResult += GETIM(temp, idy) * (Ftype4)(md->weightsHigh[i]); 
+	}
+	lowFilteredImage[id.x*iw/4+id.y] = lowFilterResult;
+	highFilteredImage[id.x*iw/4+id.y] = highFilterResult;
+}
+
+kernel void colFilterImage_(global Ftype * image,
 						   global Ftype * lowFilteredImage,
 						   global Ftype * highFilteredImage,
 						   constant struct Metadata  * md)
@@ -180,12 +214,13 @@ kernel void colFilterImage(global Ftype * image,
 	// get real position in array
 	int  iw = md->imageWidth, ih = md->imageHeight, filterRadius = md->filterRadiusHighpass, \
 		posi = globalIdx * iw + globalIdy;
-	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
+	if (globalIdy >= iw || globalIdx >= ih) return;
 
 	// define some parameters and get parameters from metadata
 	int temp;
 	Ftype filterResult[2] = {0, 0};
 
+	// convolution
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
 		temp = globalIdx + (i - filterRadius);
