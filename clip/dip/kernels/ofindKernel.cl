@@ -5,7 +5,9 @@ From HPEC Lab, ZheJiang University, 2016/07/12.
 ***************************************/
 
 #define Ftype float
+#define Ftype2 float2
 #define Ftype4 float4
+#define Ftype16 float16
 
 #define LOWFILTERLENGTH 9
 #define HIGHFILTERLENGTH 25
@@ -171,37 +173,39 @@ kernel void filterImage(global Ftype * paddedImage,
 	binaryImage[posi] = (filterResult > thresholdMap[posi]) ? 1 : 0;
 }
 
-#define GETIM(idx, idy) (Ftype4){image[idx+idy.S0],\
-								 image[idx+idy.S1],\
-								 image[idx+idy.S2],\
-								 image[idx+idy.S3]}
+#define GETIM1(idx, idy) (Ftype16){image[idx+idy.S0],image[idx+idy.S1],image[idx+idy.S2],image[idx+idy.S3],\
+								 image[idx+idy.S4],image[idx+idy.S5],image[idx+idy.S6],image[idx+idy.S7],\
+								 image[idx+idy.S8],image[idx+idy.S9],image[idx+idy.SA],image[idx+idy.SB],\
+								 image[idx+idy.SC],image[idx+idy.SD],image[idx+idy.SE],image[idx+idy.SF]}
+
+#define GETIM(idx, idy) (Ftype2){image[idx+idy.S0],image[idx+idy.S1]}
 
 kernel void colFilterImage(global Ftype * image,
-						   global Ftype4 * lowFilteredImage,
-						   global Ftype4 * highFilteredImage,
+						   global Ftype2 * lowFilteredImage,
+						   global Ftype2 * highFilteredImage,
 						   constant struct Metadata * md)
 {
 	// begin
 	const int2 id = {get_global_id(0), get_global_id(1)};
 	int iw = md->imageWidth, ih = md->imageHeight;
-	if (id.x >= ih || 4*id.y >= iw) return;
+	if (id.x >= ih || 2*id.y >= iw) return;
 
 	// define parameters
 	int temp;
-	int4 offset = {0, 1, 2, 3}, idy =  (int4)4*id.y + offset;
-	Ftype4 lowFilterResult = {0, 0, 0, 0}, highFilterResult = {0, 0, 0, 0};
+	int2 offset = {0, 1}, idy = 2*id.y + offset;
+	Ftype2 lowFilterResult = (Ftype2)0.0, highFilterResult = (Ftype2)0.0;
 
 	// convolution
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
 		temp = id.x + (i - md->filterRadiusHighpass);
-		temp = select(temp, -temp-1, isless(temp, (Ftype)0));
+		temp = select(temp, -temp-1, isless(temp, 0.0f));
 		temp = select(2*ih-temp-1, temp, isless(temp, (Ftype)ih)) * iw;
-		lowFilterResult += GETIM(temp, idy) * (Ftype4)(md->weights[i]);
-		highFilterResult += GETIM(temp, idy) * (Ftype4)(md->weightsHigh[i]); 
+		lowFilterResult += GETIM(temp, idy) * (Ftype2)(md->weights[i]);
+		highFilterResult += GETIM(temp, idy) * (Ftype2)(md->weightsHigh[i]); 
 	}
-	lowFilteredImage[id.x*iw/4+id.y] = lowFilterResult;
-	highFilteredImage[id.x*iw/4+id.y] = highFilterResult;
+	lowFilteredImage[id.x*iw/2+id.y] = lowFilterResult;
+	highFilteredImage[id.x*iw/2+id.y] = highFilterResult;
 }
 
 kernel void colFilterImage_(global Ftype * image,
@@ -210,26 +214,25 @@ kernel void colFilterImage_(global Ftype * image,
 						   constant struct Metadata  * md)
 {
 	// begin
-	const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
-	// get real position in array
-	int  iw = md->imageWidth, ih = md->imageHeight, filterRadius = md->filterRadiusHighpass, \
-		posi = globalIdx * iw + globalIdy;
-	if (globalIdy >= iw || globalIdx >= ih) return;
+	const int2 id = {get_global_id(0), get_global_id(1)};
+	int iw = md->imageWidth, ih = md->imageHeight;
+	if (id.x >= ih || id.y >= iw) return;
 
-	// define some parameters and get parameters from metadata
+	// define parameters
 	int temp;
-	Ftype filterResult[2] = {0, 0};
+	Ftype lowFilterResult = 0.0, highFilterResult = 0.0;
 
 	// convolution
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
-		temp = globalIdx + (i - filterRadius);
-		IMAGEBOUNDAY(temp, ih)
-		filterResult[0] += image[temp * iw + globalIdy] * md->weights[i];
-		filterResult[1] += image[temp * iw + globalIdy] * md->weightsHigh[i];
+		temp = id.x + (i - md->filterRadiusHighpass);
+		temp = select(temp, -temp-1, isless(temp, 0.0f));
+		temp = select(2*ih-temp-1, temp, isless(temp, (Ftype)ih)) * iw + id.y;
+		lowFilterResult += image[temp] * md->weights[i];
+		highFilterResult += image[temp] * md->weightsHigh[i]; 
 	}
-	lowFilteredImage[posi] = filterResult[0];
-	highFilteredImage[posi] = filterResult[1];
+	lowFilteredImage[id.x*iw+id.y] = lowFilterResult;
+	highFilteredImage[id.x*iw+id.y] = highFilterResult;
 
 }
 
