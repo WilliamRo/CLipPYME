@@ -75,6 +75,23 @@ struct Metadata
 	int minBgIndicesLen;
 };
 
+kernel void initBuffer(global int * bufferIndex,
+					   global int2 * syncIndex,
+					   global int2 * count,
+					   global int * pass)
+{
+	const int id = get_global_id(0);
+	if (id == 0)
+	{
+		bufferIndex[0] = bufferIndex[0] + 0;
+		syncIndex[0] = (int2){1, 0};
+		count[0] = (int2)0;
+		pass[0] = 1;
+		for (int i = 1; i < MAXLABELPASS; i++)
+			pass[i] = 0;
+	}
+}
+
 kernel void subBgAndCalcSigmaThres(global Ftype * imageStack,
                                    global Ftype * image,
 							       global Ftype * sigmaMap,
@@ -173,13 +190,7 @@ kernel void filterImage(global Ftype * paddedImage,
 	binaryImage[posi] = (filterResult > thresholdMap[posi]) ? 1 : 0;
 }
 
-#define GETIM1(idx, idy) (Ftype16){image[idx+idy.S0],image[idx+idy.S1],image[idx+idy.S2],image[idx+idy.S3],\
-								 image[idx+idy.S4],image[idx+idy.S5],image[idx+idy.S6],image[idx+idy.S7],\
-								 image[idx+idy.S8],image[idx+idy.S9],image[idx+idy.SA],image[idx+idy.SB],\
-								 image[idx+idy.SC],image[idx+idy.SD],image[idx+idy.SE],image[idx+idy.SF]}
-
-#define GETIM(idx, idy) (Ftype2){image[idx+idy.S0],image[idx+idy.S1]}
-
+#if 1
 kernel void colFilterImage(global Ftype * image,
 						   global Ftype2 * lowFilteredImage,
 						   global Ftype2 * highFilteredImage,
@@ -192,23 +203,25 @@ kernel void colFilterImage(global Ftype * image,
 
 	// define parameters
 	int temp;
-	int2 offset = {0, 1}, idy = 2*id.y + offset;
-	Ftype2 lowFilterResult = (Ftype2)0.0, highFilterResult = (Ftype2)0.0;
+	int2 idy = 2*id.y + (int2){0,1};
+	Ftype2 lowFilterResult = (Ftype2)0.0, highFilterResult = (Ftype2)0.0, im;
 
 	// convolution
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
 		temp = id.x + (i - md->filterRadiusHighpass);
-		temp = select(temp, -temp-1, isless(temp, 0.0f));
+		temp = select(temp, -temp-1, isless(temp, 0.0));
 		temp = select(2*ih-temp-1, temp, isless(temp, (Ftype)ih)) * iw;
-		lowFilterResult += GETIM(temp, idy) * (Ftype2)(md->weights[i]);
-		highFilterResult += GETIM(temp, idy) * (Ftype2)(md->weightsHigh[i]); 
+		im = (Ftype2){image[temp+idy.S0], image[temp+idy.S1]};
+		lowFilterResult += im * (Ftype2)(md->weights[i]);
+		highFilterResult += im * (Ftype2)(md->weightsHigh[i]); 
 	}
 	lowFilteredImage[id.x*iw/2+id.y] = lowFilterResult;
 	highFilteredImage[id.x*iw/2+id.y] = highFilterResult;
 }
 
-kernel void colFilterImage_(global Ftype * image,
+#else
+kernel void colFilterImage(global Ftype * image,
 						   global Ftype * lowFilteredImage,
 						   global Ftype * highFilteredImage,
 						   constant struct Metadata  * md)
@@ -235,7 +248,46 @@ kernel void colFilterImage_(global Ftype * image,
 	highFilteredImage[id.x*iw+id.y] = highFilterResult;
 
 }
+#endif
 
+#if 0
+kernel void rowFilterImage(global Ftype * lowFilteredImage,
+                           global Ftype * highFilteredImage,
+                           global Ftype2 * filteredImage,
+                           global ushort2 * binaryImage,
+                           global Ftype2 * thresholdMap,
+                           constant struct Metadata  * md)
+{
+	// begin
+	const int2 id = {get_global_id(0), get_global_id(1)};
+	int iw = md->imageWidth, ih = md->imageHeight;
+	if (id.x >= ih || 2*id.y >= iw) return;
+
+	// convolution
+	int2 temp;
+	int2 idy = 2*id.y + (int2){0,1};
+	Ftype2 filterResult = (Ftype2)0.0;
+	for (int i = 0; i < HIGHFILTERLENGTH; i++)
+	{
+		temp = idy + (i - md->filterRadiusHighpass);
+		temp = select(temp, -temp-1, isless(convert_float2(temp), (Ftype2)0.0f));
+		temp = select(2*iw-temp-1, temp, isless(convert_float2(temp), (Ftype2)iw)) + id.x*iw;
+		filterResult += (Ftype2){lowFilteredImage[temp.S0], lowFilteredImage[temp.S1]} * (Ftype2)md->weights[i];
+		filterResult -= (Ftype2){highFilteredImage[temp.S0], highFilteredImage[temp.S1]} * (Ftype2)md->weightsHigh[i];
+	}
+	// mask image edge
+	filterResult = as_float2(as_int2(filterResult) & (filterResult > (Ftype2)0));
+	int mskWid = md->maskEdgeWidth;
+	int2 isTrue = iw > mskWid && \
+		(id.x < mskWid || (ih - 1 - id.x) < mskWid || idy < mskWid || (iw - 1 - idy) < mskWid);
+	filterResult = as_float2(as_int2(filterResult) & ~isTrue);
+	int offset = id.x*iw/2+id.y;
+	filteredImage[offset] = filterResult;
+
+	// applying threshold
+	binaryImage[offset] = convert_ushort2(select((Ftype2)0, (Ftype2)1, isless(thresholdMap[offset], filterResult)));
+}
+#else
 kernel void rowFilterImage(global Ftype * lowFilteredImage,
                            global Ftype * highFilteredImage,
                            global Ftype * filteredImage,
@@ -266,7 +318,7 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 	// get result
 	 filterResult = filterResult < 0 ? 0 : filterResult;
 	int mskWid = md->maskEdgeWidth;
-	if (md->imageWidth > mskWid && \
+	if (iw > mskWid && \
 		(globalIdx < mskWid || (ih - 1 - globalIdx) < mskWid || globalIdy < mskWid || (iw - 1 - globalIdy) < mskWid))
 		filterResult = 0;
 	filteredImage[posi] = filterResult;
@@ -275,6 +327,7 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 	binaryImage[posi] = (filterResult > thresholdMap[posi]) ? 1 : 0;
 
 }
+#endif
 
 kernel void labelInit(global int *label,
                       global ushort *binaryImage,
@@ -285,26 +338,28 @@ kernel void labelInit(global int *label,
   int bgc = BGCOLOUR, iw = md->imageWidth, ih= md->imageHeight;
   int posi = globalIdx * iw + globalIdy;
 
-  if (globalIdy >= iw || globalIdx >= ih) return;
+  if (globalIdy == 0 || globalIdy >= iw || globalIdx == 0 || globalIdx >= ih) return;
 
-  if (binaryImage[posi] == bgc) { label[posi] = 0; return; }
-  if (globalIdx > 0 && binaryImage[posi] == binaryImage[posi-iw]) { label[posi] = posi-iw; return; }
-  if (globalIdy > 0 && binaryImage[posi] == binaryImage[posi- 1]) { label[posi] = posi- 1; return; }
-  label[posi] = posi;
+  float3 im = {binaryImage[posi], binaryImage[posi-1], binaryImage[posi-iw]},
+  		offset = {posi, posi-1, posi-iw};
+  float flag = offset.S0;
+  flag = select(flag, offset.S1, isequal(im.S1, 1.0f));
+  flag = select(flag, offset.S2, isequal(im.S2, 1.0f));
+  flag = select(0.0f, flag, isequal(im.S0, 1.0f));
+  label[posi] = convert_int(flag);
 
 }
 
 kernel void labelMain(global int * label,
 					  constant struct Metadata  * md,
-					  global int * syncIndex)
+					  global int * syncIndex,
+					  global int * pass)
 {
   //begin
-  KERNELBEGIN
-  //const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
+  const int2 id = {get_global_id(0), get_global_id(1)};
 
-  int iw = md->imageWidth, ih = md->imageHeight, pass = syncIndex[0];
-  int posi = globalIdx * iw + globalIdy;
-  if (globalIdy >= iw || globalIdx >= ih) return;
+  int iw = md->imageWidth, ih = md->imageHeight, posi = id.x * iw + id.y;
+  if (pass[syncIndex[0]-1] == 0 || id.y >= iw || id.x >= ih) return;
 
   int g = label[posi], og = g;
 
@@ -314,26 +369,30 @@ kernel void labelMain(global int * label,
   int ry[4] = {0, 0, -1, 1};
   for (int i = 0; i < 4; i++)
   {
-	  if (0 <=  globalIdy + ry[i] &&  globalIdy + ry[i] < iw && 0 <=  globalIdx + rx[i] &&  globalIdx + rx[i] < ih)
+	  if (0 <=  id.y + ry[i] &&  id.y + ry[i] < iw && 0 <=  id.x + rx[i] &&  id.x + rx[i] < ih)
 	  {
-			const int p1 = (globalIdx + rx[i]) * iw + globalIdy + ry[i], s = label[p1];
+			const int p1 = (id.x + rx[i]) * iw + id.y + ry[i], s = label[p1];
 			if (s != 0 && s < g) g = s;
 	  }
   }
 
-  for(int j=0;j<6;j++) g = label[g];
+  for(int i = 0; i < 6; i++) 
+  	g = label[g];
 
   if (g != og)
   {
     atomic_min(&label[og], g);
     atomic_min(&label[posi], g);
+	pass[syncIndex[0]] = 1;
   }
 
-  if (localIdx == 0 && localIdy == 0 && atom_inc(&syncIndex[1]) == groupNumx * groupNumy - 1)
-	{
+}
+
+kernel void labelSync(global int * syncIndex)
+{
+	const int id = get_global_id(0);
+	if (id == 0)
 		syncIndex[0] += 1;
-		syncIndex[1] = 0;
-	}
 }
 
 kernel void calcCandiPosiInit(global int * label,
@@ -347,10 +406,10 @@ kernel void calcCandiPosiInit(global int * label,
 	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
 	if (label[posi] == 0) return;
 
+	// init object 
 	if (label[posi] == posi)
 	{
 		// count[0] record the count of the candidate position
-		// pointCount[order] record the point count of order(th) candidate position region
 		int order = atomic_inc(count);
 		if (order >= MAXCOUNT) return;
         candiRegion[4*order+0] = globalIdx;
@@ -420,7 +479,8 @@ kernel void debounceCandiPosi(global Ftype * filteredImage,
 	if (idx > candiCount-1 || idx > MAXCOUNT) return;
 	Ftype posix = tempCandiPosi[2*idx], posiy = tempCandiPosi[2*idx+1];
 
-	int neighCount = 0, neighDistance = 0, tempX = (int)posix, tempY = (int)posiy, tempData = 0, maxIntensity = filteredImage[tempX*md->imageWidth+tempY];
+	int neighCount = 0, neighDistance = 0, tempX = (int)posix, tempY = (int)posiy, 
+		tempData = 0, maxIntensity = filteredImage[tempX*md->imageWidth+tempY];
 	int neigh[100];
 
 	for (int i = 0; i < candiCount; i++)
@@ -431,6 +491,7 @@ kernel void debounceCandiPosi(global Ftype * filteredImage,
 			neigh[neighCount++] = i;
 	}
 
+	bool flag = true;
 	neighCount = (neighCount > 5)? 5 : neighCount;
 	for (int i = 0; i < neighCount; i++)
 	{
@@ -439,18 +500,17 @@ kernel void debounceCandiPosi(global Ftype * filteredImage,
 		tempData = filteredImage[tempX*md->imageWidth+tempY];
 		if (tempData > maxIntensity)
 		{
-			posix = -1.0;
-			posiy = -1.0;
+			flag = false;
 			break;
 		}
 	}
+	if(flag)
+	{
+		int order = atomic_inc(&count[1]);
+		candiPosi[2 * order] = posix;
+		candiPosi[2 * order + 1] = posiy;	
+	}
 
-	candiPosi[2 * idx] = posix;
-	candiPosi[2 * idx + 1] = posiy;
-
-	// if(idx == 0)
-	//	count[0] = 0;
 }
-/* Recycle Code
-*/
+
 
