@@ -91,6 +91,8 @@ class Worker:
         self.minBgIndicesLen = self.md.getOrDefault( \
             'Analysis.MinimumBackgroudLength', 1)
 
+        self.fitMod = self._getFitMod()
+
     # endregion : Constructor
 
     # region : Core Method
@@ -106,7 +108,8 @@ class Worker:
         # region : Preparation
 
         data = self.dBuffer[index]
-        fitMod = self._getFitMod()
+        # fitMod = self._getFitMod()
+        fitMod = self.fitMod
 
         # endregion : Preparation
 

@@ -112,7 +112,7 @@ print('>>> Preparation done')
 worker = Worker(frames, threshold, metadata, fitMod, True)
 print('>>> Fitting...')
 
-tStart = time.time()
+tStart = time.time() # --------------------------------------
 for i in indices:
     # >> generate background indices
     bgi = range(max(0, i + bIndiceRange[0]),
@@ -123,7 +123,7 @@ for i in indices:
 
     results.append(res)
 
-tEnd = time.time()
+tEnd = time.time() # --------------------------------------
 print('>>> Elapsed time for analyzing %d frames is %.2f ms' \
       % (numFramesToAnalyze, (tEnd - tStart) * 1000))
 
@@ -142,9 +142,10 @@ print('>>> Saved results to file %s' % resFilename)
 
 # region : Verify : Check standard results
 
-if not os.path.exists(stdresFilename):
+if not os.path.exists(stdresFilename) or True:
     stdResults = []
     print('>>> Creating standard results...')
+    tStart = time.time() # ----------------------------------
     for i in indices:
         # > generate background indices
         bgi = range(max(0, i + bIndiceRange[0]),
@@ -157,6 +158,9 @@ if not os.path.exists(stdresFilename):
         res = ft()
         stdResults.append(res.results)
 
+    tEnd = time.time() # -------------------------------------
+    print('$$$ Elapsed time for analyzing %d frames is %.2f ms' \
+          % (numFramesToAnalyze, (tEnd - tStart) * 1000))
     # > save results
     stdresFile = tables.openFile(stdresFilename, 'w')
 
