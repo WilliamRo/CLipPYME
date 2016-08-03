@@ -110,12 +110,11 @@ kernel void subBgAndCalcSigmaThres(global Ftype * imageStack,
     image[posi] = imageStack[stackPosi];
 	
 	// calculate sigma map
-    Ftype n = md->cameraNoiseFactor;
-	Ftype t = md->cameraTrueEMGain;
-	Ftype e = md->cameraElectronsPerCount;
+    Ftype n = md->cameraNoiseFactor, t = md->cameraTrueEMGain, 
+		e = md->cameraElectronsPerCount;
 	varianceMap[posi] = 0; // !!! set variance map to 0 in this version
-	sigmaMap[posi] = sqrt(varianceMap[posi] + (n * n) * \
-	(e * t * MAX(image[posi] - md->cameraOffset, 1.0) + t * t)) / e;
+	sigmaMap[posi] = sqrt(varianceMap[posi] + pow(n,2) * \
+	(e * t * fmax(image[posi] - md->cameraOffset, 1.0f) + pow(t,2))) / e;
 	// calculate threshold map
 	if (md->SNThreshold)
 		thresholdMap[posi] = sigmaMap[posi] * md->fudgeFactor * md->threshold;
@@ -123,8 +122,8 @@ kernel void subBgAndCalcSigmaThres(global Ftype * imageStack,
 		thresholdMap[posi] = md->threshold;
 	
 	// get background index
-	int startInd = MAX(0, bInd + md->bgStartInd);
-	int endInd = MIN(md->maxFrameNum - 1, bInd + md->bgEndInd);
+	int startInd = max(0, bInd + md->bgStartInd),
+		endInd = min(md->maxFrameNum - 1, bInd + md->bgEndInd);
 	Ftype bg = 0;
 	if (endInd - startInd >= md->minBgIndicesLen)
 	{
@@ -136,88 +135,39 @@ kernel void subBgAndCalcSigmaThres(global Ftype * imageStack,
 		bg = md->cameraOffset;
 	
 	// get subtracted image
-	image[posi] = image[posi] - bg;
-	image[posi] = select(image[posi], (float)0.0, isless(image[posi], (float)0.0));
+	image[posi] = fmax(image[posi] - bg, 0.0f);
 }
 
-kernel void padImage(global Ftype * image,
-							   global Ftype * paddedImage,
-							   constant struct Metadata * md)
-{
-	// begin
-	int2 id = {get_global_id(0), get_global_id(1)};
-	// get real position
-	int ih = md->imageHeight, iw = md->imageWidth, halflen = md->filterRadiusHighpass, \
-		padlen = 2 * halflen;
-	if (id.x >= ih + padlen || id.y >= iw + padlen)
-		return;
-	int padposi = id.x * (iw + padlen) + id.y;
-	id.x = (id.x < ih + halflen)? abs(id.x - halflen) : (ih - abs(id.x - ih));
-	id.y = (id.y < iw + halflen)? abs(id.y - halflen) : (iw - abs(id.y - iw));
-	paddedImage[padposi] = image[id.x * iw + id.y];
-}
-
-kernel void filterImage(global Ftype * paddedImage,
-								global Ftype * filteredImage,
-								global Ftype * binaryImage,
-								global Ftype * thresholdMap,
-								constant struct Metadata * md)
-{
-	// begin
-	const int2 id = {get_global_id(0), get_global_id(1)};
-	// get real position in array
-	int ih = md->imageHeight, iw = md->imageWidth, halflen = md->filterRadiusHighpass,\
-		posi = id.x * iw + id.y, padiw = iw + 2 * halflen;
-	if (id.y >= iw || id.x >= ih) return;
-	int2 padId = id + (int2)(halflen, halflen);
-	
-	// convolution
-	Ftype filterResult = 0;
-	int count = 0;
-	for (int i = -halflen; i <= halflen; i++)
-		for (int j = -halflen; j<= halflen; j++)
-			filterResult += (paddedImage[(padId.x+i)*padiw+padId.y+j] * md->weights[count++]);
-	
-	// get result
-	 filterResult = filterResult < 0 ? 0 : filterResult;
-	int mskWid = md->maskEdgeWidth;
-	if (iw > mskWid && \
-		(id.x < mskWid || (ih - 1 - id.x) < mskWid || id.y < mskWid || (iw - 1 - id.y) < mskWid))
-		filterResult = 0;
-	filteredImage[posi] = filterResult;
-
-	// applying threshold
-	binaryImage[posi] = (filterResult > thresholdMap[posi]) ? 1 : 0;
-}
-
-#if 1
+#if 0
 kernel void colFilterImage(global Ftype * image,
 						   global Ftype2 * lowFilteredImage,
 						   global Ftype2 * highFilteredImage,
 						   constant struct Metadata * md)
 {
 	// begin
-	const int2 id = {get_global_id(0), get_global_id(1)};
+	const int2 globalId = {get_global_id(0), get_global_id(1)};
 	int iw = md->imageWidth, ih = md->imageHeight;
-	if (id.x >= ih || 2*id.y >= iw) return;
+	if (globalId.x >= ih || 2*globalId.y >= iw) return;
 
 	// define parameters
 	int temp;
-	int2 idy = 2*id.y + (int2){0,1};
+	int2 globalIdy = 2*globalId.y + (int2){0,1};
 	Ftype2 lowFilterResult = (Ftype2)0.0, highFilterResult = (Ftype2)0.0, im;
 
 	// convolution
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
-		temp = id.x + (i - md->filterRadiusHighpass);
-		temp = select(temp, -temp-1, isless(temp, 0.0));
-		temp = select(2*ih-temp-1, temp, isless(temp, (Ftype)ih)) * iw;
-		im = (Ftype2){image[temp+idy.S0], image[temp+idy.S1]};
+		temp = globalId.x + (i - md->filterRadiusHighpass);
+		temp = max(temp, -temp-1);
+		temp = min(2*ih-temp-1, temp) * iw;
+		//temp = select(temp, -temp-1, isless(temp, 0.0));
+		//temp = select(2*ih-temp-1, temp, isless(temp, (Ftype)ih)) * iw;
+		im = (Ftype2){image[temp+globalIdy.S0], image[temp+globalIdy.S1]};
 		lowFilterResult += im * (Ftype2)(md->weights[i]);
 		highFilterResult += im * (Ftype2)(md->weightsHigh[i]); 
 	}
-	lowFilteredImage[id.x*iw/2+id.y] = lowFilterResult;
-	highFilteredImage[id.x*iw/2+id.y] = highFilterResult;
+	lowFilteredImage[globalId.x*iw/2+globalId.y] = lowFilterResult;
+	highFilteredImage[globalId.x*iw/2+globalId.y] = highFilterResult;
 }
 
 #else
@@ -227,25 +177,27 @@ kernel void colFilterImage(global Ftype * image,
 						   constant struct Metadata  * md)
 {
 	// begin
-	const int2 id = {get_global_id(0), get_global_id(1)};
-	int iw = md->imageWidth, ih = md->imageHeight;
-	if (id.x >= ih || id.y >= iw) return;
+	const int2 globalId = {get_global_id(0), get_global_id(1)};
+	int iw = md->imageWidth, ih = md->imageHeight, posi = globalId.x*iw+globalId.y,
+		filterRadius = md->filterRadiusHighpass;
+	if (globalId.x >= ih || globalId.y >= iw) return;
 
 	// define parameters
 	int temp;
-	Ftype lowFilterResult = 0.0, highFilterResult = 0.0;
+	Ftype lowFilterResult = 0.0, highFilterResult = 0.0, tempIm;
 
 	// convolution
-	for (int i = 0; i < HIGHFILTERLENGTH; i++)
+	for (int i = -filterRadius; i <= filterRadius; i++)
 	{
-		temp = id.x + (i - md->filterRadiusHighpass);
-		temp = select(temp, -temp-1, isless(temp, 0.0f));
-		temp = select(2*ih-temp-1, temp, isless(temp, (Ftype)ih)) * iw + id.y;
-		lowFilterResult += image[temp] * md->weights[i];
-		highFilterResult += image[temp] * md->weightsHigh[i]; 
+		temp = globalId.x + i;
+		temp = max(temp, -temp-1);
+		temp = min(2*ih-temp-1, temp) * iw + globalId.y;
+		tempIm = image[temp];
+		lowFilterResult += tempIm * md->weights[i+filterRadius];
+		highFilterResult += tempIm * md->weightsHigh[i+filterRadius]; 
 	}
-	lowFilteredImage[id.x*iw+id.y] = lowFilterResult;
-	highFilteredImage[id.x*iw+id.y] = highFilterResult;
+	lowFilteredImage[posi] = lowFilterResult;
+	highFilteredImage[posi] = highFilterResult;
 
 }
 #endif
@@ -259,19 +211,19 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
                            constant struct Metadata  * md)
 {
 	// begin
-	const int2 id = {get_global_id(0), get_global_id(1)};
+	const int2 globalId = {get_global_id(0), get_global_id(1)};
 	int iw = md->imageWidth, ih = md->imageHeight;
-	if (id.x >= ih || 2*id.y >= iw) return;
+	if (globalId.x >= ih || 2*globalId.y >= iw) return;
 
 	// convolution
 	int2 temp;
-	int2 idy = 2*id.y + (int2){0,1};
+	int2 globalIdy = 2*globalId.y + (int2){0,1};
 	Ftype2 filterResult = (Ftype2)0.0;
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
-		temp = idy + (i - md->filterRadiusHighpass);
+		temp = globalIdy + (i - md->filterRadiusHighpass);
 		temp = select(temp, -temp-1, isless(convert_float2(temp), (Ftype2)0.0f));
-		temp = select(2*iw-temp-1, temp, isless(convert_float2(temp), (Ftype2)iw)) + id.x*iw;
+		temp = select(2*iw-temp-1, temp, isless(convert_float2(temp), (Ftype2)iw)) + globalId.x*iw;
 		filterResult += (Ftype2){lowFilteredImage[temp.S0], lowFilteredImage[temp.S1]} * (Ftype2)md->weights[i];
 		filterResult -= (Ftype2){highFilteredImage[temp.S0], highFilteredImage[temp.S1]} * (Ftype2)md->weightsHigh[i];
 	}
@@ -279,9 +231,9 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 	filterResult = as_float2(as_int2(filterResult) & (filterResult > (Ftype2)0));
 	int mskWid = md->maskEdgeWidth;
 	int2 isTrue = iw > mskWid && \
-		(id.x < mskWid || (ih - 1 - id.x) < mskWid || idy < mskWid || (iw - 1 - idy) < mskWid);
+		(globalId.x < mskWid || (ih - 1 - globalId.x) < mskWid || globalIdy < mskWid || (iw - 1 - globalIdy) < mskWid);
 	filterResult = as_float2(as_int2(filterResult) & ~isTrue);
-	int offset = id.x*iw/2+id.y;
+	int offset = globalId.x*iw/2+globalId.y;
 	filteredImage[offset] = filterResult;
 
 	// applying threshold
@@ -296,11 +248,11 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
                            constant struct Metadata  * md)
 {
 	// begin
-	const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
+	const int2 globalId = {get_global_id(0), get_global_id(1)};
 	// get real position in array
 	int iw = md->imageWidth, ih = md->imageHeight, filterRadius = md->filterRadiusHighpass, \
-		posi = globalIdx * iw + globalIdy;
-	if (globalIdy >= iw || globalIdx >= ih) return;
+		posi = globalId.x * iw + globalId.y;
+	if (globalId.y >= iw || globalId.x >= ih) return;
 		
 	// define some parameters and get parameters from metadata
 	int temp;
@@ -309,17 +261,17 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 	// high : row
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
-		temp = globalIdy + (i - filterRadius);
+		temp = globalId.y + (i - filterRadius);
 		IMAGEBOUNDAY(temp, iw)
-		filterResult += lowFilteredImage[globalIdx * iw + temp] * md->weights[i];
-		filterResult -= highFilteredImage[globalIdx * iw + temp] * md->weightsHigh[i];
+		filterResult += lowFilteredImage[globalId.x * iw + temp] * md->weights[i];
+		filterResult -= highFilteredImage[globalId.x * iw + temp] * md->weightsHigh[i];
 	}
 
 	// get result
-	 filterResult = filterResult < 0 ? 0 : filterResult;
+	 filterResult = max(filterResult, 0.0f);
 	int mskWid = md->maskEdgeWidth;
 	if (iw > mskWid && \
-		(globalIdx < mskWid || (ih - 1 - globalIdx) < mskWid || globalIdy < mskWid || (iw - 1 - globalIdy) < mskWid))
+		(globalId.x < mskWid || (ih - 1 - globalId.x) < mskWid || globalId.y < mskWid || (iw - 1 - globalId.y) < mskWid))
 		filterResult = 0;
 	filteredImage[posi] = filterResult;
 
@@ -396,26 +348,25 @@ kernel void labelSync(global int * syncIndex)
 }
 
 kernel void calcCandiPosiInit(global int * label,
-							  global int * candiRegion,
+							  global int4 * candiRegion,
 							  global int * count,
 							  constant struct Metadata * md)
 {
 
-	const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
-	int posi = globalIdx * md->imageWidth + globalIdy;
-	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
+	const int2 globalId = {get_global_id(0), get_global_id(1)};
+	int posi = globalId.x * md->imageWidth + globalId.y;
+	if (globalId.y >= md->imageWidth || globalId.x >= md->imageHeight) return;
 	if (label[posi] == 0) return;
 
 	// init object 
 	if (label[posi] == posi)
 	{
-		// count[0] record the count of the candidate position
-		int order = atomic_inc(count);
+		// count[0] record the count of the candidate object
+		int order = atomic_inc(&count[0]);
 		if (order >= MAXCOUNT) return;
-        candiRegion[4*order+0] = globalIdx;
-        candiRegion[4*order+1] = globalIdy;
-        candiRegion[4*order+2] = globalIdx;
-        candiRegion[4*order+3] = globalIdy;
+		// init candidate object region
+		candiRegion[order] = (int4){globalId.x, globalId.y, globalId.x, globalId.y};
+		// use negative number to label original point
 		label[posi] = -order - 1;
 	}
 
@@ -426,18 +377,18 @@ kernel void getCandiPosiObj(global int * label,
                             global int * count,
                             constant struct Metadata * md)
 {
-    const int globalIdx = get_global_id(0), globalIdy = get_global_id(1);
-	int posi = globalIdx * md->imageWidth + globalIdy;
-	if (globalIdy >= md->imageWidth || globalIdx >= md->imageHeight) return;
+    const int2 globalId = {get_global_id(0), get_global_id(1)};
+	int posi = globalId.x * md->imageWidth + globalId.y;
+	if (globalId.y >= md->imageWidth || globalId.x >= md->imageHeight) return;
 	if (label[posi] <= 0) return;
 
 	int order = -label[label[posi]] - 1;
 	if (order > MAXCOUNT - 1) return;
 
-	atomic_min(&candiRegion[4*order+0],globalIdx);
-    atomic_min(&candiRegion[4*order+1],globalIdy);
-	atomic_max(&candiRegion[4*order+2],globalIdx);
-	atomic_max(&candiRegion[4*order+3],globalIdy);
+	atomic_min(&candiRegion[4*order+0],globalId.x);
+    atomic_min(&candiRegion[4*order+1],globalId.y);
+	atomic_max(&candiRegion[4*order+2],globalId.x);
+	atomic_max(&candiRegion[4*order+3],globalId.y);
 
 }
 

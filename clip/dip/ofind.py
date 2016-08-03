@@ -5,202 +5,14 @@
 #
 ##################
 
-#import scipy
-import numpy
-import math
 from scipy import ndimage
+from scipy.ndimage import _nd_image, _ni_support
 from scipy.spatial import ckdtree
 import  numpy as np
-import  clip.cl as cl
-import ctypes as ct
 import time
+from ofindPara import *
+import pyopencl as pycl
 #import pylab
-
-
-def calc_gauss_weights(sigma):
-    '''calculate a gaussian filter kernel (adapted from scipy.ndimage.filters.gaussian_filter1d)'''
-    sd = float(sigma)
-    # make the length of the filter equal to 4 times the standard
-    # deviations:
-    lw = int(4.0 * sd + 0.5)
-    weights = numpy.zeros(2 * lw + 1, 'float64')
-    weights[lw] = 1.0
-    sum = 1.0
-    sd = sd * sd
-    # calculate the kernel:
-    for ii in range(1, lw + 1):
-        tmp = math.exp(-0.5 * float(ii * ii) / sd)
-        weights[lw + ii] = tmp
-        weights[lw - ii] = tmp
-        sum += 2.0 * tmp
-
-    return weights/sum
-
-#default filter sizes
-filtRadLowpass = 1
-filtRadHighpass = 3
-
-#precompute our filter weights
-weightsLowpass = calc_gauss_weights(filtRadLowpass)
-weightsHighpass = calc_gauss_weights(filtRadHighpass)
-
-# region : CLOFIND
-
-# region : create metadata
-lowFilterLength = 9
-highFilterLength = 25
-class clMetadata(ct.Structure):
-    _fields_ = [("imageWidth", ct.c_int32),
-                ("imageHeight", ct.c_int32),
-                ("imageDepth", ct.c_int32),
-                ("voxelSizeX", ct.c_float),
-                ("voxelSizeY", ct.c_float),
-                ("voxelSizeZ", ct.c_float),
-                ("is2DImage", ct.c_bool),
-                ("filterRadiusLowpass", ct.c_int32),
-                ("filterRadiusHighpass", ct.c_int32),
-                ("lowFilterLength", ct.c_int32),
-                ("highFilterLength", ct.c_int32),
-                ("weightsLow", ct.c_double*lowFilterLength),
-                ("weightsHigh", ct.c_double*highFilterLength),
-                ("cameraOffset", ct.c_float),
-                ("cameraNoiseFactor", ct.c_float),
-                ("cameraElectronsPerCount", ct.c_float),
-                ("cameraTrueEMGain", ct.c_float),
-                ("debounceRadius", ct.c_float),
-                ("threshold", ct.c_float),
-                ("fudgeFactor", ct.c_float),
-                ("maskEdgeWidth", ct.c_int32),
-                ("SNThreshold", ct.c_bool)]
-wl = (ct.c_double * lowFilterLength)()
-for i in xrange(lowFilterLength):
-    wl[i] = ct.c_double(weightsLowpass[i])
-wh = (ct.c_double * highFilterLength)()
-for i in xrange(highFilterLength):
-    wh[i] = ct.c_double(weightsHighpass[i])
-md = clMetadata(170,140,1,0.08,0.08,0.10,True,4,12,9,25,wl,wh,\
-                0.0,1.0,1.0,1.0,5.0,1.0,1.0,5,True)
-
-
-# endregion : create metadata
-
-# other parameters
-pixelCount = md.imageWidth * md.imageHeight
-maxCount = 5000
-# maxRegionPointNum = 2000
-maxpass = 10
-candiCount = 0
-typeIntSize = ct.sizeof(ct.c_int32)
-typeShortSize = ct.sizeof(ct.c_int16)
-typeFloatSize = ct.sizeof(ct.c_float)
-typeDoubleSize = ct.sizeof(ct.c_double)
-typeBoolSize = ct.sizeof(ct.c_bool)
-
-# get device and default commandQueue
-context = cl.context
-device = context.default_device
-commandQueue = context.default_queue
-program = cl.program
-ma = cl.mem_access_mode
-
-# region : create kernel
-
-cl.colFilterKernel = program.colFilterImage
-cl.rowFilterKernel = program.rowFilterImage
-cl.calcSigmaAndThresholdKernel = program.calcSigmaAndThreshold
-cl.labelInitKernel = program.labelInit
-cl.labelPropagateKernel = program.labelMain
-cl.candiInitKernel = program.calcCandiPosiInit
-cl.candiObjKernel = program.getCandiPosiObj
-cl.candiMainKernel = program.caclCandiPosiMain
-cl.debounceCandiKernel = program.debounceCandiPosi
-
-# endregion : create kernel
-
-# region : create memory buffer
-
-cl.memMetadata = context.create_buffer(ma.READ_ONLY, ct.sizeof(md))
-cl.memImage = context.create_buffer(ma.READ_ONLY, pixelCount * typeFloatSize)
-cl.memFilteredImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
-cl.memHighFilteredImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
-cl.memLowFilteredImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
-cl.memSigmaMap = context.create_buffer(ma.READ_WRITE, pixelCount * typeDoubleSize)
-cl.memThresholdMap = context.create_buffer(ma.READ_WRITE, pixelCount * typeDoubleSize)
-cl.memVarianceMap = context.create_buffer(ma.READ_WRITE, pixelCount * typeDoubleSize)
-cl.memSyncIndex = context.create_buffer(ma.READ_WRITE, 2 * typeIntSize)
-cl.memBinaryImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeShortSize)
-cl.memLabeledImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeIntSize)
-cl.memCandiPosi = context.create_buffer(ma.READ_WRITE, 2 * maxCount * typeFloatSize)
-cl.memTempCandiPosi = context.create_buffer(ma.READ_WRITE, 2 * maxCount * typeFloatSize)
-cl.memCandiRegion = context.create_buffer(ma.READ_WRITE, maxCount * 4 * typeIntSize)
-cl.memCandiCount = context.create_buffer(ma.READ_WRITE, typeIntSize)
-
-# endregion : create memory buffer
-
-# region : set kernel arguments and wotk item dimension
-
-cl.colFilterKernel.set_arg(0, cl.memImage)
-cl.colFilterKernel.set_arg(1, cl.memLowFilteredImage)
-cl.colFilterKernel.set_arg(2, cl.memHighFilteredImage)
-cl.colFilterKernel.set_arg(3, cl.memMetadata)
-
-cl.rowFilterKernel.set_arg(0, cl.memLowFilteredImage)
-cl.rowFilterKernel.set_arg(1, cl.memHighFilteredImage)
-cl.rowFilterKernel.set_arg(2, cl.memFilteredImage)
-cl.rowFilterKernel.set_arg(3, cl.memBinaryImage)
-cl.rowFilterKernel.set_arg(4, cl.memThresholdMap)
-cl.rowFilterKernel.set_arg(5, cl.memMetadata)
-
-cl.calcSigmaAndThresholdKernel.set_arg(0, cl.memImage)
-cl.calcSigmaAndThresholdKernel.set_arg(1, cl.memSigmaMap)
-cl.calcSigmaAndThresholdKernel.set_arg(2, cl.memThresholdMap)
-cl.calcSigmaAndThresholdKernel.set_arg(3, cl.memVarianceMap)
-cl.calcSigmaAndThresholdKernel.set_arg(4, cl.memMetadata)
-cl.filterKernelGlobalSize = [md.imageHeight, md.imageWidth, 1]
-cl.filterKernelLocalSize = [16, 16, 1]
-
-cl.labelInitKernel.set_arg(0, cl.memLabeledImage)
-cl.labelInitKernel.set_arg(1, cl.memBinaryImage)
-cl.labelInitKernel.set_arg(2, cl.memMetadata)
-
-cl.labelPropagateKernel.set_arg(0, cl.memLabeledImage)
-cl.labelPropagateKernel.set_arg(1, cl.memMetadata)
-cl.labelPropagateKernel.set_arg(2, cl.memSyncIndex)
-cl.labelKernelGlobalSize = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
-cl.labelKernelLocalSize = [1, 1, 1]
-
-cl.candiInitKernel.set_arg(0, cl.memLabeledImage)
-cl.candiInitKernel.set_arg(1, cl.memCandiRegion)
-cl.candiInitKernel.set_arg(2, cl.memCandiCount)
-cl.candiInitKernel.set_arg(3, cl.memMetadata)
-
-cl.candiObjKernel.set_arg(0, cl.memLabeledImage)
-cl.candiObjKernel.set_arg(1, cl.memCandiRegion)
-cl.candiObjKernel.set_arg(2, cl.memCandiCount)
-cl.candiObjKernel.set_arg(3, cl.memMetadata)
-cl.candiInitKernelGlobalSize = [md.imageHeight, md.imageWidth, 1]
-cl.candiInitKernelLocalSize = [1, 1, 1]
-
-cl.candiMainKernel.set_arg(0, cl.memFilteredImage)
-cl.candiMainKernel.set_arg(1, cl.memCandiRegion)
-cl.candiMainKernel.set_arg(2, cl.memTempCandiPosi)
-cl.candiMainKernel.set_arg(3, cl.memCandiCount)
-cl.candiMainKernel.set_arg(4, cl.memMetadata)
-
-cl.debounceCandiKernel.set_arg(0, cl.memFilteredImage)
-cl.debounceCandiKernel.set_arg(1, cl.memCandiPosi)
-cl.debounceCandiKernel.set_arg(2, cl.memTempCandiPosi)
-cl.debounceCandiKernel.set_arg(3, cl.memCandiCount)
-cl.debounceCandiKernel.set_arg(4, cl.memMetadata)
-cl.candiMainKernelGlobalSize = [maxCount, 1, 1]
-cl.candiMainKernelLocalSize = [1, 1, 1]
-
-# endregion : set kernel arguments and wotk item dimension
-
-# write metadata into device
-cl.enqueue_copy(commandQueue, cl.memMetadata, md)
-
-# endregion : CLOFIND
 
 class OfindPoint:
     def __init__(self, x, y, z=None, detectionThreshold=None):
@@ -229,8 +41,18 @@ class PseudoPointList:
                 tm2.append(it.__dict__[self.varName])
             return tm2
 
+    #def __iter__(self):
+    #    self.curpos = -1
+    #    return self
+
+    #def next(self):
+    #    curpos += 1
+    #    if (curpos >= len(self)):
+    #        raise StopIteration
+    #    return self[self.curpos]
+
 class ObjectIdentifier(list):
-    def __init__(self, data):
+    def __init__(self, data, bg):
         """Creates an Identifier object to be used for object finding, takes a 2D or 3D slice
         into a data stack (data), and a filtering mode (filterMode, one of ["fast", "good"])
         where "fast" performs a z-projection and then filters, wheras "good" filters in 3D before
@@ -238,7 +60,38 @@ class ObjectIdentifier(list):
         used to identify 'point-like' features. filterRadiusZ is the radius used for the axial smoothing filter"""
         global filtRadLowpass, filtRadHighpass, weightsLowpass, weightsHighpass
 
-        self.data = data.astype('f').reshape([pixelCount])
+        self.clData = data.astype('f').reshape([pixelCount])
+        self.data = data.astype('f')
+        self.bg = bg
+
+    def __FilterData2D(self,data):
+        mode = _ni_support._extend_mode_to_code("reflect")
+        #lowpass filter to suppress noise
+        output, a = _ni_support._get_output(None, data)
+        _nd_image.correlate1d(data, weightsLowpass, 0, output, mode, 0,0)
+        # print '1st low filter result in py is %.10f. ' % a[13, 112]
+        # tmpSum = 0.0
+        # for i in range(-4,5,1):
+        #     tmpSum = tmpSum + a[13, 112+i]*weightsLowpass[i+4]
+        # print 'tmpSum:', tmpSum
+        _nd_image.correlate1d(output, weightsLowpass, 1, output, mode, 0,0)
+        # print '2nd low filter result in py is %f. ' % a[13, 112]
+
+        #lowpass filter again to find background
+        output, b = _ni_support._get_output(None, data)
+        _nd_image.correlate1d(data, weightsHighpass, 0, output, mode, 0,0)
+        # print '1st high filter result in py is %.10f. ' % b[13, 112]
+        _nd_image.correlate1d(output, weightsHighpass, 1, output, mode, 0,0)
+        # print '2nd high filter result in py is %f. ' % b[13, 112]
+
+        return a - b
+
+    def __FilterDataFast(self):
+        #project data
+        if len(self.data.shape) == 2: #if already 2D, do nothing
+            return self.__FilterData2D(self.data)
+        else:
+            return sum([self.__FilterData2D(self.data[:,:,i]) for i in range(self.data.shape[2])])
 
     def __Debounce(self, xs, ys, radius=4):
         if len(xs) < 2:
@@ -368,22 +221,41 @@ class ObjectIdentifier(list):
                 dis = math.sqrt(dis)
         return dis
 
-    def FindObjects(self, debounceRadius = 4):
-        """Finds point-like objects by subjecting the data to a band-pass filtering (as defined when
-        creating the identifier) followed by z-projection and a thresholding procedure where the
-        threshold is progressively decreased from a maximum value (half the maximum intensity in the image) to a
-        minimum defined as [thresholdFactor]*the mode (most frequently occuring value,
-        should correspond to the background) of the image. The number of steps can be given as
-        [numThresholdSteps], with defualt being 5 when filterMode="fast" and 10 for filterMode="good".
-        At each step the thresholded image is blurred with a Gaussian of radius [blurRadius] to
-        approximate the image of the points found in that step, and subtracted from the original, thus
-        removing the objects from the image such that they are not detected at the lower thresholds.
-        This allows the detection of objects which are relatively close together and spread over a
-        large range of intenstities. A binary mask [mask] may be applied to the image to specify a region
-        (e.g. a cell) in which objects are to be detected.
+    def __discardClumped(self, xs, ys, radius=4):
+        if len(xs) < 2:
+            return xs, ys
 
-        A copy of the filtered image is saved such that subsequent calls to FindObjects with, e.g., a
-        different thresholdFactor are faster."""
+        kdt = ckdtree.cKDTree(numpy.array([xs,ys]).T)
+
+        xsd = []
+        ysd = []
+
+        for i in xrange(len(xs)):
+            xi = xs[i]
+            yi = ys[i]
+            #neigh = kdt.query_ball_point([xi,yi], radius)
+
+            dn, neigh = kdt.query(numpy.array([xi,yi]), 2)
+            print dn
+
+            if (dn[1] > radius):
+                xsd.append(xi)
+                ysd.append(yi)
+
+        print len(xsd)
+
+        return numpy.array(xsd), numpy.array(ysd)
+
+    def FindObjects(self,
+                    index,
+                    thresholdFactor,
+                    debounceRadius = 4,
+                    maskEdgeWidth = 5,
+                    discardClumpRadius = 0):
+        """."""
+
+        #save a copy of the parameters.
+        self.lowerThreshold = thresholdFactor
 
         #clear the list of previously found points
         del self[:]
@@ -394,50 +266,153 @@ class ObjectIdentifier(list):
         self.candiCount = numpy.array(0)
         self.clBinaryImage = numpy.zeros(pixelCount, 'uint16')
         self.clLabel = numpy.zeros(pixelCount, 'int32')
+        self.clThreshold = numpy.zeros(pixelCount, 'float32')
+        self.clDebounceCandi = numpy.zeros(maxCount*2, 'float32')
 
-        tStart = time.time()
-        cl.enqueue_copy(commandQueue, cl.memImage, self.data)
-        cl.enqueue_copy(commandQueue, cl.memCandiCount, np.array(candiCount)).wait()
+        for i in xrange(10):
+            if i != 0:
+                cpuStartTime.append(time.time())
+            # copy data into device
 
-        cl.calcSigmaAndThresholdKernel.enqueue_nd_range(cl.filterKernelGlobalSize, commandQueue, cl.filterKernelLocalSize)
-        cl.colFilterKernel.enqueue_nd_range(cl.filterKernelGlobalSize, commandQueue, cl.filterKernelLocalSize)
-        cl.rowFilterKernel.enqueue_nd_range(cl.filterKernelGlobalSize, commandQueue, cl.filterKernelLocalSize)
+            if i is 0:
+                copyIntoDeviceEvent.append(
+                    cl.enqueue_copy(commandQueue,
+                                    cl.memImageStack,
+                                    self.clData,
+                                    device_offset=index * pixelCount * typeFloatSize,
+                                    is_blocking=False)
+                )
+                cl.enqueue_copy(commandQueue,
+                                cl.memBufferIndex,
+                                numpy.array(index,'int32'),
+                                is_blocking = False)
+                cl.enqueue_copy(commandQueue,
+                                cl.memCandiCount,
+                                np.array(candiCount),
+                                is_blocking = False)
+            else:
+                initBufferEvent.append(
+                    cl.initBuffer.enqueue_nd_range(cl.initBufferGlobalDim,
+                                                   commandQueue)
+                )
+
+            # subtract bg and get sigma map threshold map
+            subBgEvent.append(
+                cl.subBg.enqueue_nd_range(cl.filterGlobalDim,
+                                          commandQueue,
+                                          cl.filterLocalDim)
+            )
+
+            # do filtering
+            colFilterEvent.append(
+                cl.colFilter.enqueue_nd_range(cl.filterGlobalDim,
+                                              commandQueue,
+                                              cl.filterLocalDim)
+            )
+            rowFilterEvent.append(
+                cl.rowFilter.enqueue_nd_range(cl.filterGlobalDim,
+                                              commandQueue,
+                                              cl.filterLocalDim)
+            )
+
+            # label image
+            labelInitEvent.append(
+                cl.labelInit.enqueue_nd_range(cl.labelGlobalDim,
+                                              commandQueue,
+                                              cl.labelLocalDim)
+            )
+            for j in xrange(maxpass):
+                labelMainEvent.append(
+                    cl.labelMain.enqueue_nd_range(cl.labelGlobalDim,
+                                                  commandQueue)
+                )
+                cl.labelSync.enqueue_nd_range(labelSyncGlobalDim,
+                                              commandQueue)
+
+
+            # calculate candidate positions
+            candiInitEvent.append(
+                cl.candiInit.enqueue_nd_range(cl.candiInitGlobalDim,
+                                              commandQueue)
+            )
+            candiObjEvent.append(
+                cl.getObject.enqueue_nd_range(cl.candiInitGlobalDim,
+                                              commandQueue)
+            )
+            candiMainEvent.append(
+                cl.candiMain.enqueue_nd_range(cl.candiMainGlobalDim,
+                                              commandQueue)
+            )
+
+            # debounce candidate position
+            debounceCandiEvent.append(
+                cl.debCandi.enqueue_nd_range(cl.candiMainGlobalDim,
+                                             commandQueue,
+                                             cl.candiMainLocalDim)
+            )
+
+            commandQueue.flush()
+            commandQueue.finish()
+
+            if i != 0:
+                cpuEndTime.append(time.time())
+
+        PrintTotalInformation()
+
+        # copy data into host
+        cl.enqueue_copy(commandQueue, self.clLabel,cl.memLabeledImage)
+        cl.enqueue_copy(commandQueue, self.candiCount,cl.memCandiCount)
+        cl.enqueue_copy(commandQueue, self.clDebounceCandi,cl.memCandiPosi)
         cl.enqueue_copy(commandQueue, self.clFilteredData, cl.memFilteredImage)
         cl.enqueue_copy(commandQueue, self.clBinaryImage, cl.memBinaryImage)
+        cl.enqueue_copy(commandQueue, self.clThreshold, cl.memThresholdMap)
+        cl.enqueue_copy(commandQueue, self.candiPosi, cl.memTempCandiPosi).wait()
 
-        cl.labelInitKernel.enqueue_nd_range(cl.labelKernelGlobalSize, commandQueue)
-        for i in xrange(maxpass):
-            cl.labelPropagateKernel.enqueue_nd_range(cl.labelKernelGlobalSize, commandQueue)
-        cl.enqueue_copy(commandQueue, self.clLabel, cl.memLabeledImage)
+        self.clFilteredData = self.clFilteredData.reshape([md.imageHeight, md.imageWidth])
 
-        cl.candiInitKernel.enqueue_nd_range(cl.candiInitKernelGlobalSize, commandQueue)
-        cl.candiObjKernel.enqueue_nd_range(cl.candiInitKernelGlobalSize, commandQueue)
-        cl.candiMainKernel.enqueue_nd_range(cl.candiMainKernelGlobalSize, commandQueue)
-        cl.enqueue_copy(commandQueue, self.candiPosi, cl.memTempCandiPosi)
-        cl.enqueue_copy(commandQueue, self.candiCount, cl.memCandiCount).wait()
-        cl.debounceCandiKernel.enqueue_nd_range(cl.candiMainKernelGlobalSize, commandQueue)
-        tEnd = time.time()
-        print('>>> Kernel run time is %.2f ms' \
-              % ((tEnd - tStart) * 1000))
+        # compareMatrix(self.data - self.bg,
+        #                    self.clData.reshape([md.imageHeight, md.imageWidth]),
+        #                    '>>> 0. Subtracted image')
+        #
+        # compareMatrix(self.lowerThreshold,
+        #                self.clThreshold.reshape([md.imageHeight, md.imageWidth]),
+        #                '>>> 0.1. Threshold')
 
         # >>>> 1. do filtering
-        self.filteredData = self.clFilteredData.reshape([md.imageHeight, md.imageWidth])
+        self.data = self.data - self.bg
+        self.data = self.data * (self.data > 0)
+        self.filteredData = self.__FilterDataFast()
+        self.filteredData *= (self.filteredData > 0)
 
         # apply mask
         maskedFilteredData = self.filteredData
+        # maskedFilteredData = self.clFilteredData
+
+        # manually mask the edge pixels
+        if maskEdgeWidth and self.filteredData.shape[1] > maskEdgeWidth:
+            maskedFilteredData[:, :maskEdgeWidth] = 0
+            maskedFilteredData[:, -maskEdgeWidth:] = 0
+            maskedFilteredData[-maskEdgeWidth:, :] = 0
+            maskedFilteredData[:maskEdgeWidth, :] = 0
+
+        compareMatrix(self.clFilteredData, maskedFilteredData,
+                           '>>> 1. Filter result', 0.01)
 
         X,Y = numpy.mgrid[0:maskedFilteredData.shape[0], 0:maskedFilteredData.shape[1]]
 
         #store x, y, and thresholds
         xs = []
         ys = []
+        ts = []
 
         # >>>> 2. applying threshold
         im = maskedFilteredData
+        imt = im > self.lowerThreshold
+        climt = self.clBinaryImage.reshape([md.imageHeight, md.imageWidth])
+        compareMatrix(imt, climt, '>>> 2. Applying threshold', 0)
 
         # >>>> 3. labeling image
-        labeledPoints = self.clLabel.reshape([md.imageHeight, md.imageWidth])
-        nLabeled = self.candiCount
+        (labeledPoints, nLabeled) = ndimage.label(imt)
 
         labelSet = set(self.clLabel)
         labelList = []
@@ -447,7 +422,7 @@ class ObjectIdentifier(list):
         self.clLabel = self.clLabel.reshape([md.imageHeight, md.imageWidth])
         for i in xrange(nLabeled):
             self.clLabel[self.clLabel == labelList[i+1]] = i+1;
-
+        # compareMatrix(labeledPoints, self.clLabel, '>>> 3. Label', 0)
 
         objSlices = ndimage.find_objects(labeledPoints)
 
@@ -461,38 +436,41 @@ class ObjectIdentifier(list):
             #and add to list
             xs.append(x)
             ys.append(y)
-            # ts.append(self.lowerThreshold)
+            ts.append(self.lowerThreshold)
 
-        clxs = []
-        clys = []
+        candiRes = numpy.zeros([nLabeled,2],dtype='f')
+        clCandiRes = numpy.zeros([nLabeled,2],dtype='f')
         for i in xrange(nLabeled):
-            clxs.append(self.candiPosi[2 * i])
-            clys.append(self.candiPosi[2 * i + 1])
-
-        flag = True
-        sortedXs = sorted(xs)
-        sortedClxs = sorted(clxs)
-        for i in xrange(nLabeled):
-            index = xs.index(sortedXs[i])
-            clIndex = clxs.index(sortedClxs[i])
-            if abs(sortedXs[i] - sortedClxs[i]) > 0.001 or abs(ys[index] - clys[clIndex]) > 0.001:
-                flag = False
-                break
-        if flag:
-            print '>>> 4. Calculating candidate position right!'
-        else:
-            print '>>> 4. Calculating candidate position wrong!'
-
+            candiRes[i,0] = xs[i]
+            candiRes[i,1] = ys[i]
+            clCandiRes[i,0] = self.candiPosi[2*i]
+            clCandiRes[i,1] = self.candiPosi[2*i+1]
+        candiRes[:,0].sort()
+        candiRes[:,1].sort()
+        clCandiRes[:,0].sort()
+        clCandiRes[:,1].sort()
+        compareMatrix(candiRes,clCandiRes,
+                           '>>> 4. Calculating candidate position', tol=0.01)
 
         xs = numpy.array(xs)
         ys = numpy.array(ys)
 
+        if discardClumpRadius > 0:
+            print 'ditching clumps'
+            xs, ys = self.__discardClumped(xs, ys, discardClumpRadius)
+
         xs, ys = self.__Debounce(xs, ys, debounceRadius)
+        clxs = []
+        clys = []
+        for i in xrange(maxCount):
+            if (self.clDebounceCandi[2*i] != 0) and \
+                (self.clDebounceCandi[2*i+1] != 0):
+                clxs.append(self.clDebounceCandi[2*i])
+                clys.append(self.clDebounceCandi[2*i+1])
+         # xs, ys = self.Debounce(xs, ys, debounceRadius)
 
-        # xs, ys = self.Debounce(xs, ys, debounceRadius)
-
-        for x, y in zip(xs, ys):
-            self.append(OfindPoint(x,y))
+        for x, y, t in zip(xs, ys, ts):
+            self.append(OfindPoint(x,y,t))
 
 
         #create pseudo lists to allow indexing along the lines of self.x[i]

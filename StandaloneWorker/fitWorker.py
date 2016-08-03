@@ -138,18 +138,21 @@ class Worker:
         # get ofind
         #import PYME.Analysis.ofind as ofind
         ofdMod = self._getOfind()
-        ofd = ofdMod.ObjectIdentifier(bgd * (bgd > 0))
 
         # perform objects finding
         debounce = self.md.getOrDefault('Analysis.DebounceRadius', 5)
         discardClumpRadius = self.md.getOrDefault('Analysis.ClumpRejectRadius', 0)
 
         if self.findMethod == 'CLOfind':
-            ofd.FindObjects(debounceRadius=debounce)
+            ofd = ofdMod.ObjectIdentifier(data.astype('f'), bg)
+            ofd.FindObjects(index,
+                            self.calcThreshold(sigma),
+                            debounceRadius=debounce)
         else:
+            ofd = ofdMod.ObjectIdentifier(bgd * (bgd > 0))
             ofd.FindObjects(self.calcThreshold(sigma), 0,
-                        debounceRadius=debounce,
-                        discardClumpRadius=discardClumpRadius)
+                            debounceRadius=debounce,
+                            discardClumpRadius=discardClumpRadius)
 
         # endregion : Find candidate molecule positions
 
@@ -217,6 +220,8 @@ class Worker:
         n = self.md.Camera.NoiseFactor
         e = self.md.Camera.ElectronsPerCount
         t = self.md.Camera.TrueEMGain
+        # print data[5,7]
+        # print np.sqrt(var + (n ** 2) * (e * t * np.maximum(data[5,7], 1) + t * t)) / e
 
         return np.sqrt(var + (n ** 2) * (e * t * np.maximum(data, 1) + t * t)) / e
 
