@@ -6,9 +6,10 @@
 void lmdif(local fcndata *p, local real *x, local real *fvec,
 		   real ftol, real xtol, real gtol, int maxfev, real epsfcn,
 		   local real *diag, int mode, real factor, local int *nfev,
-		   local real *fjac, int ldfjac, local int *ipvt,
-		   local real *qtf, local real *wa1, local real *wa2,
-		   local real *wa3, local real *wa4, local int *info)
+		   local real *fjac, int ldfjac, local int *ipvt, local real *qtf,
+		   local real *wa1, local real *wa2, local real *wa3,
+		   local real *wa4, local int *inta, local real *reala,
+		   local real *wa0)
 	/* LMDIF
 
 	Parameters
@@ -104,7 +105,11 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 
 	wa4: real array of length m
 
-	info: int scalar [output]
+	inta: int array of length INTN
+
+	reala: real array of length REALN
+
+	info(inta[INFO]): int scalar [output]
 
 		info = 0  improper input parameters.
 
@@ -141,60 +146,61 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 	real d1, d2;
 	real temp, temp1, temp2, sum;
 	real fnorm1, actred;
-	real ratio;
-
-	// :: local variables
-
-	local int iter, flag;
-
-	local real loc_temp;
-	local real par;
-	local real delta;
-	local real fnorm, gnorm;
-	local real pnorm, xnorm, dirder, epsmch, prered;
-
-	if (index == 0)
+	real ratio; 
+	/// S9150, double, GS64: 13 us
+	/// S9150, double, GS11x11: 12 us
+	if (index == N)
 	{
-		delta = 0;
-		xnorm = 0.0;
-		epsmch = dpmpar(1);	// [Verified]
-		*info = -1;
+		reala[DELTA] = 0;
+		reala[XNORM] = 0.0;
+		reala[EPSMCH] = dpmpar(1);
+		inta[INFO] = -1;
 		*nfev = 0;
 	}
-
+	/// S9150, double, GS11x11: 11~12 us
+	/// S9150, double, GS64: 14~15 us
 	// > check the input parameters for errors
 	if (index == N)
 		if (N <= 0 || M < N || ldfjac < M || ftol < 0. || xtol < 0. ||
-			gtol < 0. || maxfev <= 0 || factor <= 0.) *info = 0;
+			gtol < 0. || maxfev <= 0 || factor <= 0.) inta[INFO] = 0;
 
-	if (mode == 2 && index < N && diag[index] <= 0) *info = 0;
+	if (mode == 2 && index < N && diag[index] <= 0) inta[INFO] = 0;
 
 	loc_bar;
 
-	if (*info >= 0) return;
+	if (inta[INFO] >= 0) return;
 
-	if (index == N) *info = 0;
-
+	if (index == N) inta[INFO] = 0;
+	
 #pragma endregion
-
+	
 #pragma region Preparation
-
-	fcn_mn(p, x, fvec);  /// less than 5 us
+	/// S9150, double, GS64: 14~15 us
+	/// S9150, double, GS11x11: 12~13 us
+	fcn_mn(p, x, fvec);	
+	/// S9150, double, GS11x11: 17~18 us
+	/// S9150, double, GS64: 21~22 us
 	if (index == N) *nfev = 1;
-	loc_bar;
+	
+	loc_bar;	/// S9150, double, GS11x11: 17~18 us.
 
-	//enorm_p(M, fvec, &fnorm, wa4);		// TODO: SYNC
+	enorm_p(M, fvec, &reala[FNORM], wa4);
 
 	if (index == N)
 	{
-		fnorm = enorm(M, fvec);
-		par = 0.0;
-		iter = 1;
+		//reala[FNORM] = enorm_w(M, fvec);
+
+		reala[PAR] = 0.0;
+		inta[LMDIF_ITER] = 1;
 	}
+
+	/// S9150, double, GS11x11: 22~23 us
 
 #pragma region [ Verification ]
 #if 0
-	if (index == 0) printf(">>> fnorm = %.16f\n", fnorm);
+	loc_bar;
+	if (index == N) printf("# reala[FNORM] = %.16f\n", reala[FNORM]);
+	return;
 #endif
 #pragma endregion
 
@@ -205,37 +211,39 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 	for (;;)
 	{
 		// > calculate the jacobian matrix 
-		/// about 20 us
-		fdjac2(p, x, fvec, fjac, ldfjac, epsfcn, wa4);
+		/// S9150, double, GS11x11: 22~23 us
+		fdjac2(p, x, fvec, fjac, ldfjac, epsfcn, wa4, reala);
+		/// S9150, double, GS11x11: 40~41 us
 		if (index == N) *nfev += N;
 
 		// > compute the qr factorization of the jacobian
-		/// about 550 us
-		qrfac(fjac, ldfjac, true, ipvt, wa1, wa2, wa3);
-
-		loc_bar;
+		/// S9150, double, GS11x11: 40~41 us
+		qrfac(fjac, ldfjac, true, ipvt, wa1, wa2, wa3, inta, reala, wa0);
+		/// S9150, double, GS11x11: 416~417 us
 
 #pragma region [ Verification ]
 #if 0
-		if (index == 0)
+		loc_bar;
+		if (index == N)
 		{
-			printf(">> ipvt = [%d %d %d %d %d %d %d]\n",
-				   ipvt[0], ipvt[1], ipvt[2], ipvt[3],
-				   ipvt[4], ipvt[5], ipvt[6]);
+			//printf("# ipvt = [%d %d %d %d %d %d %d]\n",
+			//	   ipvt[0], ipvt[1], ipvt[2], ipvt[3],
+			//	   ipvt[4], ipvt[5], ipvt[6]);
 
-			printf(">> rdiag = \n[%.10f\n %.10f\n %.10f\n %.10f\n %.10f\n %.10f\n %.10f]\n",
+			//printf("# acnorm = \n[%.10f\n %.10f\n %.10f\n %.10f\n %.10f\n %.10f\n %.10f]\n",
+			//	   wa2[0], wa2[1], wa2[2], wa2[3], wa2[4], wa2[5], wa2[6]);
+
+			printf("# rdiag = \n[%.10f\n %.10f\n %.10f\n %.10f\n %.10f\n %.10f\n %.10f]\n",
 				   wa1[0], wa1[1], wa1[2], wa1[3], wa1[4], wa1[5], wa1[6]);
-
-			printf(">> acnorm = \n[%.10f\n %.10f\n %.10f\n %.10f\n %.10f\n %.10f\n %.10f]\n",
-				   wa2[0], wa2[1], wa2[2], wa2[3], wa2[4], wa2[5], wa2[6]);
 		}
+		return;
 #endif
 #pragma endregion
 
 		// > on the first iteration and if mode is 1, scale 
 		//    according to the norms of the columns of the 
 		//    initial jacobian. 
-		if (iter == 1 && index < N)
+		if (inta[LMDIF_ITER] == 1 && index < N)
 		{
 			j = index;
 			if (mode != 2)
@@ -244,27 +252,29 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 				if (wa2[j] == 0.0) diag[j] = 1.0;
 			}
 			// >> on the first iteration, calculate the norm 
-			//     of the scaled x and initialize the step bound delta
+			//     of the scaled x and initialize the step bound reala[DELTA]
 			wa3[j] = diag[j] * x[j];
 			if (j == 0)
 			{
-				xnorm = enorm(N, wa3);
-				delta = factor * xnorm;
-				if (delta == 0.0) delta = factor;
+				reala[XNORM] = enorm_w(N, wa3);
+				reala[DELTA] = factor * reala[XNORM];
+				if (reala[DELTA] == 0.0) reala[DELTA] = factor;
 			}
 		}
-
+		/// S9150, double, GS11x11: 416~417 us
 #pragma region [ Verification ]
 #if 0
-		if (index == 0) printf(">>> delta = %.10f\n", delta);
+		loc_bar;
+		if (index == 0) printf("$ reala[DELTA] = %.10f\n", reala[DELTA]);
+		return;
 #endif
 #pragma endregion
-
+		
 		// > form (q transpose)*fvec and store the first n components  
 		//	  int qtf
 		wa4[index] = fvec[index];
-
-		/// => 585 us
+		
+		/// S9150, double, GS11x11: 411 us
 		for (j = 0; j < N; ++j)  /// about 59 us
 		{
 			// :: if v_k[0] is 0, H_k does nothing
@@ -278,14 +288,14 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 					sum = 0.0;
 					for (i = j; i < M; ++i)
 						sum += fjac[i + j * ldfjac] * wa4[i];
-					loc_temp = -sum / fjac[j + j * ldfjac];
+					reala[LMDIF_TEMP] = -sum / fjac[j + j * ldfjac];
 				}
-
+				
 				loc_bar;
 
 				i = index;
 				if (j <= i)
-					wa4[i] += fjac[i + j * ldfjac] * loc_temp;
+					wa4[i] += fjac[i + j * ldfjac] * reala[LMDIF_TEMP];
 			}
 			if (index == N)
 			{
@@ -295,17 +305,18 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 		}
 
 		loc_bar;
-
+		/// S9150, double, GS11x11: 600 us
 #pragma region [ Verification ]
 #if 0
-		if (index < N) printf(">>> qtf[%d] = %.10f\n", index, qtf[index]);
+		if (index < N) printf("# qtf[%d] = %.10f\n", index, qtf[index]);
+		return;
 #endif
 #pragma endregion
 
 		/// => 646~647 us
 		// > compute the norm of the scaled gradient
 		/// about 45 us
-		if (fnorm != 0.0)
+		if (reala[FNORM] != 0.0)
 		{
 			j = index;
 			if (index < N)
@@ -315,34 +326,34 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 				{
 					sum = 0.0;
 					for (i = 0; i <= j; ++i)
-						sum += fjac[i + j * ldfjac] * (qtf[i] / fnorm);
+						sum += fjac[i + j * ldfjac] * (qtf[i] / reala[FNORM]);
 
 					wa1[l] = fabs(sum / wa2[l]);
 				}
 			}
 		}
-
+		
 		loc_bar;
 
 		if (index == N)
 		{
-			gnorm = 0.0;
+			reala[GNORM] = 0.0;
 			for (j = 0; j < N; j++)
-				if (wa1[j] > gnorm)
-					gnorm = wa1[j];
+				if (wa1[j] > reala[GNORM])
+					reala[GNORM] = wa1[j];
 
 			// > test for convergence of the gradient norm
-			if (gnorm <= gtol) *info = 4;
+			if (reala[GNORM] <= gtol) inta[INFO] = 4;
 		}
 
 		loc_bar;  // => 690~691 us
-		
-		if (*info != 0) return;
+
+		if (inta[INFO] != 0) return;
 
 #pragma region [ Verification ]
 #if 0
 		if (index == 0)
-			printf(">>> gnorm = %.10f\n", gnorm);
+			printf(">>> gnorm = %.10f\n", reala[GNORM]);
 #endif
 #pragma endregion
 
@@ -356,14 +367,14 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 		}
 
 		loc_bar;
-
+		
 #pragma region Inner Loop
-
+		/// S9150, double, GS11x11: 615 us
 		do
 		{
 			// > determine the levenberg-marquardt parameter
-			lmpar(fjac, ldfjac, ipvt, diag, qtf, delta,
-				  &par, wa1, wa2, wa3, wa4);
+			lmpar(fjac, ldfjac, ipvt, diag, qtf, reala[DELTA],
+				  &reala[PAR], wa1, wa2, wa3, wa4, inta, reala);
 
 			loc_bar;  /// => 672 us
 
@@ -377,18 +388,18 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 			loc_bar;  /// => 672 us
 
 			if (index == N) {
-				pnorm = enorm(N, wa3);
+				reala[PNORM] = enorm_w(N, wa3);
 				// > on the first iteration, adjust the initial step bound
 				// !! private -> local: + 5 us
-				if (iter == 1) delta = min(delta, pnorm);
+				if (inta[LMDIF_ITER] == 1) reala[DELTA] = min(reala[DELTA], reala[PNORM]);
 			}
-
+			
 			loc_bar;  /// => 686~687 us
 
 #pragma region [ Verification ]
 #if 0
 			if (index == N)
-				printf("# pnorm = %.10f\n", pnorm);
+				printf("# pnorm = %.10f\n", reala[PNORM]);
 #endif
 #pragma endregion
 
@@ -397,16 +408,17 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 			/// => 689 us
 			if (index == N) {
 				++(*nfev);
-				fnorm1 = enorm(M, wa4);
+				fnorm1 = enorm_w(M, wa4);
 				/// => 691 us
 				// > compute the scaled actual reduction
 				actred = -1.0;
-				if (p1 * fnorm1 < fnorm) {
+				if (p1 * fnorm1 < reala[FNORM]) {
 					// - computing 2nd power 
-					d1 = fnorm1 / fnorm;
+					d1 = fnorm1 / reala[FNORM];
 					actred = 1. - d1 * d1;
 				}
 			}
+			
 			loc_bar;	/// !! => 729 us
 
 			/* > compute the scaled predicted reduction and the
@@ -435,34 +447,34 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 			loc_bar;	/// => 732~734
 
 			if (index == N) {
-				temp1 = enorm(N, wa3) / fnorm;
-				temp2 = (sqrt(par) * pnorm) / fnorm;
-				prered = temp1 * temp1 + temp2 * temp2 / p5;
-				dirder = -(temp1 * temp1 + temp2 * temp2);
+				temp1 = enorm(N, wa3) / reala[FNORM];
+				temp2 = (sqrt(reala[PAR]) * reala[PNORM]) / reala[FNORM];
+				reala[PRERED] = temp1 * temp1 + temp2 * temp2 / p5;
+				reala[DIRDER] = -(temp1 * temp1 + temp2 * temp2);
 
 				// > compute the ratio of the actual to the predicted 
 				//   reduction
 				ratio = 0.0;
-				if (prered != 0.0) ratio = actred / prered;
+				if (reala[PRERED] != 0.0) ratio = actred / reala[PRERED];
 				/// => 729~732
 				// > update the step bound
 				if (ratio <= p25) {
 					if (actred >= 0.0) temp = p5;
-					else temp = p5 * dirder / (dirder + p5 * actred);
-					if (p1 * fnorm1 >= fnorm || temp < p1) temp = p1;
+					else temp = p5 * reala[DIRDER] / (reala[DIRDER] + p5 * actred);
+					if (p1 * fnorm1 >= reala[FNORM] || temp < p1) temp = p1;
 					// > computing min
-					d1 = pnorm / p1;
-					delta = temp * min(delta, d1);
-					par /= temp;
+					d1 = reala[PNORM] / p1;
+					reala[DELTA] = temp * min(reala[DELTA], d1);
+					reala[PAR] /= temp;
 				}
 				else {
-					if (par == 0.0 || ratio >= p75) {
-						delta = pnorm / p5;
-						par = p5 * par;
+					if (reala[PAR] == 0.0 || ratio >= p75) {
+						reala[DELTA] = reala[PNORM] / p5;
+						reala[PAR] = p5 * reala[PAR];
 					}
 				}
 				/// => 787~790 !!!
-				flag = ratio >= p0001;
+				inta[LMDIF_FLAG] = ratio >= p0001;
 			}
 
 			loc_bar;
@@ -470,16 +482,16 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 #pragma region [ Verification ]
 #if 0
 			if (index == N) {
-				printf("# prered = %.10f\n", prered);
+				printf("# prered = %.10f\n", reala[PRERED]);
 				printf("# ratio = %.10f\n", ratio);
 				printf("# actred = %.10f\n", actred);
-		}
+			}
 			return;
 #endif
 #pragma endregion
 
 			// > test for successful iteration
-			if (flag) {
+			if (inta[LMDIF_FLAG]) {
 				// successful iteration. update x, fvec, and their norms
 				j = index;
 				if (j < N) {
@@ -491,9 +503,9 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 				loc_bar;
 
 				if (index == N) {
-					xnorm = enorm(N, wa2);
-					fnorm = fnorm1;
-					++iter;
+					reala[XNORM] = enorm(N, wa2);
+					reala[FNORM] = fnorm1;
+					++inta[LMDIF_ITER];
 				}
 			}
 
@@ -501,58 +513,58 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 
 			if (index == N) {
 				// > tests for convergence
-				if (fabs(actred) <= ftol && prered <= ftol && p5 * ratio <= 1.) {
-					*info = 1;
+				if (fabs(actred) <= ftol && reala[PRERED] <= ftol && p5 * ratio <= 1.) {
+					inta[INFO] = 1;
 				}
-				if (delta <= xtol * xnorm) {
-					*info = 2;
+				if (reala[DELTA] <= xtol * reala[XNORM]) {
+					inta[INFO] = 2;
 				}
-				if (fabs(actred) <= ftol && prered <= ftol && p5 * ratio <= 1. && info == 2) {
-					*info = 3;
+				if (fabs(actred) <= ftol && reala[PRERED] <= ftol && p5 * ratio <= 1. && inta[INFO] == 2) {
+					inta[INFO] = 3;
 				}
 			}
-
+			
 			loc_bar;   /// => 795~797 us
-			if (*info != 0) return;
+			if (inta[INFO] != 0) return;
 
 			if (index == N)
 			{
 				// > tests for termination and stringent tolerances
 				if (*nfev >= maxfev) {
-					*info = 5;
+					inta[INFO] = 5;
 				}
-				if (fabs(actred) <= epsmch && prered <= epsmch && p5 * ratio <= 1.) {
-					*info = 6;
+				if (fabs(actred) <= reala[EPSMCH] && reala[PRERED] <= reala[EPSMCH] && p5 * ratio <= 1.) {
+					inta[INFO] = 6;
 				}
-				if (delta <= epsmch * xnorm) {
-					*info = 7;
+				if (reala[DELTA] <= reala[EPSMCH] * reala[XNORM]) {
+					inta[INFO] = 7;
 				}
-				if (gnorm <= epsmch) {
-					*info = 8;
+				if (reala[GNORM] <= reala[EPSMCH]) {
+					inta[INFO] = 8;
 				}
-				flag = ratio < p0001;
+				inta[LMDIF_FLAG] = ratio < p0001;
 			}
 
 #pragma region [ Verification ]
 #if 0
 			if (index == N) {
-				printf("## info = %d\n", *info);
-				printf("## gnorm = %.10f\n", gnorm);
+				printf("## info = %d\n", inta[INFO]);
+				printf("## gnorm = %.10f\n", reala[GNORM]);
 			}
 			return;
 #endif
 #pragma endregion
 
 			loc_bar;
-			if (*info != 0) return;
-			
-	} while (flag);
+			if (inta[INFO] != 0) return;
+
+		} while (inta[LMDIF_FLAG]);
 
 #pragma endregion
 
-}
-
-#pragma endregion
 	}
+
+#pragma endregion
+}
 
 #endif

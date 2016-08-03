@@ -20,6 +20,8 @@
 			#define M 10
 			#define N 7
 
+		   each work group must contain more than N work items.
+
 		3. definition for fcndata, e.g.
 
 			typedef struct
@@ -38,12 +40,12 @@
 			 #define GREAT_M_DIM_2
 
 		2. work item local index in one dimension, e.g.
-		  
-		     #define INDEX (gli(0)*ROI_L+gli(1))
 
-		   the default is 
+			 #define INDEX (gli(0)*ROI_L+gli(1))
 
-		     #define  INDEX get_local_id(0)
+		   the default is
+
+			 #define INDEX (gwd()==2?(gli(0)+gli(1)*gls(0)):gli(0))
 
 */
 
@@ -58,12 +60,17 @@
 #define  ggri get_group_id
 #define  ggo  get_global_offset
 
+#define  GS   (gwd()==2?(gls(0)*gls(1)):gls(0))
+#define  ELITE (N % GS)
+
 #ifndef INDEX
-#define  INDEX get_local_id(0)
+#define INDEX (gwd()==2?(gli(0)+gli(1)*gls(0)):gli(0))
 #endif
 
 #define loc_bar barrier(CLK_LOCAL_MEM_FENCE)
 #define glb_bar barrier(CLK_GLOBAL_MEM_FENCE)
+
+#define CHK loc_bar; return;
 
 #define p5 .5
 #define p1 .1
@@ -73,6 +80,51 @@
 #define p001 .001
 #define p0001 1e-4
 
+#define INTN	     9
+// ===================
+#define INFO         0
+#define LMDIF_FLAG   1
+#define LMDIF_ITER	 2
+// ------------------- ¡ülmdif.cl
+#define MINMN		 3
+#define KMAX		 4
+// ------------------- ¡üqrfac.cl
+#define LMPAR_FLAG   5
+#define LMPAR_ITER   6
+#define NSING        7
+// ------------------- ¡ülmpar.cl
+#define NSING2       8
+// ------------------- ¡üqrsolv.cl
+
+#define REALN       21
+// ===================
+#define LMDIF_TEMP   0
+#define PAR			 1
+#define DELTA		 2			 
+#define FNORM		 3
+#define GNORM		 4
+#define PNORM		 5
+#define XNORM		 6
+#define DIRDER		 7
+#define EPSMCH		 8
+#define PRERED		 9
+// ------------------- ¡ülmdif.cl
+#define FDH			10
+#define EPS			11
+#define FD_TEMP     12
+// ------------------- ¡üfdjac2.cl
+#define QRFAC_TEMP  13
+#define AJNORM      14
+#define QR_EPSMCH   15
+// ------------------- ¡üqrfac.cl
+#define FP		    16
+#define DXNORM      17
+#define LMPAR_TEMP  18
+// ------------------- ¡ülmpar.cl
+#define COS         19
+#define SIN         20
+// ------------------- ¡üqrsolv.cl
+
 // supplied by user
 void fcn_mn(local fcndata *p, local real *x, local real *fvec);
 
@@ -81,25 +133,30 @@ void lmdif(local fcndata *p, local real *x, local real *fvec,
 		   local real *diag, int mode, real factor, local int *nfev,
 		   local real *fjac, int ldfjac, local int *ipvt,
 		   local real *qtf, local real *wa1, local real *wa2,
-		   local real *wa3, local real *wa4, local int *info);
+		   local real *wa3, local real *wa4, local int *inta,
+		   local real *reala, local real *wa0);
 
 real dpmpar(int i);
 
-void enorm_p(int n, local real *x, local real *norm, local real *wa);
+void enorm_p(int, local real *, local real *, local real *);
 real enorm(int n, local real *x);
+real enorm_w(int n, local real *x);
 
 void fdjac2(local fcndata *p, local real *x, local real *fvec,
-			local real *fjac, int ldfjac, real epsfcn, local real *wa);
+			local real *fjac, int ldfjac, real epsfcn, local real *wa,
+			local real *reala);
 
 void qrfac(local real *a, int lda, int pivot, local int *ipvt,
-		   local real *rdiag, local real *acnorm, local real *wa);
+		   local real *rdiag, local real *acnorm, local real *wa,
+		   local int * inta, local real *reala, local real *wa0);
 
 void lmpar(local real* r, int ldr, local int *ipvt, local real *diag,
 		   local real *qtb, real delta, local real *par, local real *x,
-		   local real *sdiag, local real *wa1, local real *wa2);
+		   local real *sdiag, local real *wa1, local real *wa2,
+		   local int *inta, local real *reala);
 
 void qrsolv(local real *r, int ldr, local int *ipvt, local real *diag,
 			local real *qtb, local real *x, local real *sdiag,
-			local real *wa);
+			local real *wa, local int *inta, local real *reala);
 
 #endif // !CL_MINPACK

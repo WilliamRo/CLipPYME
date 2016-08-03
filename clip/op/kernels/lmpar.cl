@@ -6,7 +6,8 @@
 void lmpar(local real* r, int ldr, local int *ipvt,
 		   local real *diag, local real *qtb, real delta,
 		   local real *par, local real *x, local real *sdiag,
-		   local real *wa1, local real *wa2)
+		   local real *wa1, local real *wa2, local int *inta,
+		   local real *reala)
 	/* LMPAR
 
 	Solves the sub-problem in the levenberg-marquardt algorithm.
@@ -93,12 +94,6 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 	dwarf = dpmpar(2);
 	epsmch = dpmpar(1);
 
-	// :: local variables
-	local int nsing;
-	local int iter;
-	local real fp, dxnorm, loc_temp;
-	local int flag;
-
 #pragma endregion
 
 #pragma region Compute Gauss-Newton direction
@@ -108,23 +103,23 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 	//    squares solution
 	/// => 650 us
 	if (index == N) {
-		nsing = N;
+		inta[NSING] = N;
 		for (j = 0; j < N; j++) {
 			wa1[j] = qtb[j];
 			if (fabs(r[j + j * ldr]) < 1e-8) {
 				r[j + j * ldr] = 0.0;
 			}
-			if (r[j + j * ldr] == 0.0 && nsing == N) {
-				nsing = j;
+			if (r[j + j * ldr] == 0.0 && inta[NSING] == N) {
+				inta[NSING] = j;
 			}
-			if (nsing < N) {
+			if (inta[NSING] < N) {
 				wa1[j] = 0.0;
 			}
 		}
 
-		if (nsing >= 1) {
-			for (k = 1; k <= nsing; ++k) {
-				j = nsing - k;
+		if (inta[NSING] >= 1) {
+			for (k = 1; k <= inta[NSING]; ++k) {
+				j = inta[NSING] - k;
 				wa1[j] /= r[j + j * ldr];
 				temp = wa1[j];
 				if (j >= 1) {
@@ -162,24 +157,24 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 	loc_bar;
 
 	if (index == N) {
-		iter = 0;
-		dxnorm = enorm(N, wa2);
+		inta[LMPAR_ITER] = 0;
+		reala[DXNORM] = enorm(N, wa2);
 		// TODO: private -> local costs 10 us ...
-		fp = dxnorm - delta;
+		reala[FP] = reala[DXNORM] - delta;
 		parl = 0.0;
 	}
 
 	loc_bar;
 	// ######################## Debug Switch ##########################
-	if (fp <= p1 * delta) {
+	if (reala[FP] <= p1 * delta) {
 		*par = 0.0;  return;
 	}
 
 	/// => 668 us
-	if (nsing >= N) {
+	if (inta[NSING] >= N) {
 		if (index < N) {
 			l = ipvt[index] - 1;
-			wa1[index] = diag[l] * (wa2[l] / dxnorm);
+			wa1[index] = diag[l] * (wa2[l] / reala[DXNORM]);
 		}
 		loc_bar;
 		if (index == N) {
@@ -193,7 +188,7 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 				wa1[j] = (wa1[j] - sum) / r[j + j * ldr];
 			}
 			temp = enorm(N, wa1);
-			parl = fp / delta / temp / temp;
+			parl = reala[FP] / delta / temp / temp;
 		}
 	}
 
@@ -206,7 +201,7 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 		printf("# parl = %.10f\n", parl);
 		printf("# temp = %.10f\n", temp);
 		printf("# delta = %.10f\n", delta);
-		//printf("# nsing = %d\n", nsing);
+		//printf("# nsing = %d\n", inta[NSING]);
 	}
 	return;
 #endif
@@ -239,7 +234,7 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 		// !! private -> local costs 10 us
 		*par = max(*par, parl);
 		*par = min(*par, paru);
-		if (*par == 0.0) *par = gnorm / dxnorm;
+		if (*par == 0.0) *par = gnorm / reala[DXNORM];
 	}
 
 #pragma region [ Verification ]
@@ -262,19 +257,19 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 		loc_bar;
 
 		if (index == N) {
-			iter++;
+			inta[LMPAR_ITER]++;
 			// > evaluate the function at the current value of par
 			if (*par == 0.0) {
 				// > computing max 
 				d1 = dwarf, d2 = p001 * paru;
 				*par = max(d1, d2);
 			}
-			loc_temp = sqrt(*par);
+			reala[LMPAR_TEMP] = sqrt(*par);
 		}
 
 		loc_bar;
 
-		if (index < N) wa1[index] = loc_temp * diag[index];
+		if (index < N) wa1[index] = reala[LMPAR_TEMP] * diag[index];
 
 #pragma region [ Verification ]
 #if 0
@@ -287,7 +282,7 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 #pragma endregion
 
 		/// => 704~707 us
-		qrsolv(r, ldr, ipvt, wa1, qtb, x, sdiag, wa2);
+		qrsolv(r, ldr, ipvt, wa1, qtb, x, sdiag, wa2, inta, reala);
 
 		loc_bar;
 		/// => 772 us
@@ -296,9 +291,9 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 		loc_bar;
 		/// => 772 us
 		if (index == N) {
-			dxnorm = enorm(N, wa2);
-			temp = fp;
-			fp = dxnorm - delta;
+			reala[DXNORM] = enorm(N, wa2);
+			temp = reala[FP];
+			reala[FP] = reala[DXNORM] - delta;
 		}
 
 		loc_bar;
@@ -306,7 +301,7 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 #pragma region [ Verification ]
 #if 0
 		if (index == N) {
-			printf("# fp = %.10f\n", fp);
+			printf("# fp = %.10f\n", reala[FP]);
 		}
 		return;
 #endif
@@ -317,14 +312,14 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 			 of par. also test for the exceptional cases where parl
 			 is zero or the number of iterations has reached 10.    */
 		if (index == N) {
-			flag = fabs(fp) <= p1 * delta
-				|| (parl == 0. && fp <= temp && temp < 0.)
-				|| iter == 10;
+			inta[LMPAR_FLAG] = fabs(reala[FP]) <= p1 * delta
+				|| (parl == 0. && reala[FP] <= temp && temp < 0.)
+				|| inta[LMPAR_ITER] == 10;
 		}
 
 		loc_bar;
 
-		if (flag) return;
+		if (inta[LMPAR_FLAG]) return;
 
 		/* > compute the newton correction
 		   ::
@@ -336,7 +331,7 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 		j = index;
 		if (j < N) {
 			l = ipvt[j] - 1;
-			wa1[j] = diag[l] * (wa2[l] / dxnorm);
+			wa1[j] = diag[l] * (wa2[l] / reala[DXNORM]);
 		}
 
 		loc_bar; /// => 784~785 us
@@ -362,7 +357,7 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 		/// => 787~789 us
 		if (index == N) {
 			temp = enorm(N, wa1);
-			parc = fp / delta / temp / temp;
+			parc = reala[FP] / delta / temp / temp;
 		}
 
 #pragma region [ Verification ]
@@ -378,8 +373,8 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 
 		if (index == N) {
 			// > depending on the sign of the function, update parl or paru.
-			if (fp > 0.0) parl = max(parl, *par);
-			if (fp < 0.0) paru = min(paru, *par);
+			if (reala[FP] > 0.0) parl = max(parl, *par);
+			if (reala[FP] < 0.0) paru = min(paru, *par);
 			// > compute an improved estimate for par
 			d1 = parl, d2 = *par + parc;
 			*par = max(d1, d2);

@@ -15,14 +15,23 @@
 
 #endif
 
+real enorm_w(int n, local real *x)
+{
+	real sum = 0.0;
+	for (int i = 0; i < n; i++)
+		sum = mad(x[i], x[i], sum);
+	return sqrt(sum);
+}
+
 // [Verified]
-void enorm_p(int n, local real *x, local real *norm, local real *wa)
+void enorm_p(int n, local real *x, local real *res, local real *wa)
 /*
 */
 {
 	int index = INDEX;
 
 	if (index < n) wa[index] = x[index] * x[index];
+
 	loc_bar;
 
 	int offset = M_NEXT >> 1;
@@ -35,7 +44,9 @@ void enorm_p(int n, local real *x, local real *norm, local real *wa)
 		loc_bar;
 	}
 
-	if (index == 0) *norm = sqrt(wa[0]);
+	if (index == 0) {
+		*res = sqrt(wa[0]);
+	}
 }
 
 // [Verified]

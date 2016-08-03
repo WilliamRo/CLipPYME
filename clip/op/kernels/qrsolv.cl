@@ -5,7 +5,8 @@
 
 void qrsolv(local real *r, int ldr, local int *ipvt,
 			local real *diag, local real *qtb, local real *x,
-			local real *sdiag, local real *wa)
+			local real *sdiag, local real *wa, local int *inta,
+			local real *reala)
 	/* QRSOLV
 
 	Solves the linear least square problem:
@@ -79,10 +80,6 @@ void qrsolv(local real *r, int ldr, local int *ipvt,
 	real sum, temp;
 	real qtbpj;
 
-	// :: local variables
-	local real cos, sin;
-	local int nsing;
-
 #pragma endregion
 
 #pragma region Preparation
@@ -150,30 +147,30 @@ void qrsolv(local real *r, int ldr, local int *ipvt,
 						if (fabs(r[k + k * ldr]) < fabs(sdiag[k])) {
 							real cotan;
 							cotan = r[k + k * ldr] / sdiag[k];
-							sin = p5 / sqrt(p25 + p25 * (cotan * cotan));
-							cos = sin * cotan;
+							reala[SIN] = p5 / sqrt(p25 + p25 * (cotan * cotan));
+							reala[COS] = reala[SIN] * cotan;
 						}
 						else {
 							real tan;
 							tan = sdiag[k] / r[k + k * ldr];
-							cos = p5 / sqrt(p25 + p25 * (tan * tan));
-							sin = cos * tan;
+							reala[COS] = p5 / sqrt(p25 + p25 * (tan * tan));
+							reala[SIN] = reala[COS] * tan;
 						}
 						/* > compute the modified diagonal element of r and
 							 the modified element of ((q^t * b, 0).      */
-						temp = cos * wa[k] + sin * qtbpj;
+						temp = reala[COS] * wa[k] + reala[SIN] * qtbpj;
 						/// 705~708 us
-						qtbpj = -sin * wa[k] + cos * qtbpj;
+						qtbpj = -reala[SIN] * wa[k] + reala[COS] * qtbpj;
 						wa[k] = temp;
 						/// 722~724 us [private & local issue]
-						r[k + k * ldr] = cos * r[k + k * ldr] + sin * sdiag[k];
+						r[k + k * ldr] = reala[COS] * r[k + k * ldr] + reala[SIN] * sdiag[k];
 					}
 
 					loc_bar;  /// 725~727 us
 
 					i = index;
 					if (N > k + 1 && k < i && i < N) {
-						temp = cos * r[i + k * ldr] + sin * sdiag[i];
+						temp = reala[COS] * r[i + k * ldr] + reala[SIN] * sdiag[i];
 						/* UNDER SOME PRECONDITION
 							On NVDIA 980M GPU, in routine
 
@@ -184,7 +181,7 @@ void qrsolv(local real *r, int ldr, local int *ipvt,
 							 all time span in this kernel till this line is
 							 about merely 20 us.
 						*/
-						sdiag[i] = -sin * r[i + k * ldr] + cos * sdiag[i];
+						sdiag[i] = -reala[SIN] * r[i + k * ldr] + reala[COS] * sdiag[i];
 						r[i + k * ldr] = temp;
 					}
 				}
@@ -213,22 +210,22 @@ void qrsolv(local real *r, int ldr, local int *ipvt,
 	loc_bar;  /// 774 us
 
 	if (index == N) {
-		nsing = N;
+		inta[NSING2] = N;
 		for (j = 0; j < N; ++j) {
-			if (sdiag[j] == 0. && nsing == N) {
-				nsing = j;
+			if (sdiag[j] == 0. && inta[NSING2] == N) {
+				inta[NSING2] = j;
 			}
-			if (nsing < N) {
+			if (inta[NSING2] < N) {
 				wa[j] = 0.0;
 			}
 		}
 		/*
-		if (nsing >= 1) {
-			for (k = 1; k <= nsing; ++k) {
-				j = nsing - k;
+		if (inta[NSING2] >= 1) {
+			for (k = 1; k <= inta[NSING2]; ++k) {
+				j = inta[NSING2] - k;
 				sum = 0.;
-				if (nsing > j + 1) {
-					for (i = j + 1; i < nsing; ++i) {
+				if (inta[NSING2] > j + 1) {
+					for (i = j + 1; i < inta[NSING2]; ++i) {
 						sum += r[i + j * ldr] * wa[i];
 					}
 				}
@@ -239,12 +236,13 @@ void qrsolv(local real *r, int ldr, local int *ipvt,
 
 	loc_bar;  /// 770 us ???
 
-	if (nsing >= 1) {
-		for (k = 1; k <= nsing; ++k) {
+	i = inta[NSING2];
+	if (i >= 1) {
+		for (k = 1; k <= i; ++k) {
 
 			loc_bar;
 
-			j = nsing - k;
+			j = i - k;
 			if (index == N) wa[j] /= sdiag[j];
 
 			loc_bar;
@@ -259,7 +257,7 @@ void qrsolv(local real *r, int ldr, local int *ipvt,
 #pragma region [ Verification ]
 #if 0
 	//if (index == N)
-	//	printf("# nsing = %d\n", nsing);
+	//	printf("# nsing = %d\n", inta[NSING2]);
 	if (index < N) {
 		printf("# wa[%d] = %.10f\n", index, wa[index]);
 	}

@@ -197,7 +197,23 @@ class GaussianFitFactory:
             m = L * L
             n = 7
             filename = r'latgauss_export.data'
-            f = open(filename, 'w')
+
+            if 'NOT_FIRST_TIME' in self.__dict__:
+                f = open(filename, 'a')
+            else:
+                f = open(filename, 'w')
+                # > write img
+                img = np.asarray(self.data_mean, np.float64).flatten()
+                for i in range(img.size):
+                    f.write('%.16f\n' % img[i])
+                # > write sigma
+                img_sig = np.asarray(self.noise_sigma,
+                                     np.float64).flatten()
+                for i in range(img_sig.size):
+                    f.write('%s.16f\n' % img_sig[i])
+
+                self.NOT_FIRST_TIME = True
+
             # > write X
             for i in range(L):
                 f.write('%f\n' % X[i])
@@ -215,14 +231,6 @@ class GaussianFitFactory:
             # > write x0
             for i in range(n):
                 f.write('%.16f\n' % start_parameters[i])
-            # > write img
-            img = np.asarray(self.data_mean, np.float64).flatten()
-            for i in range(img.size):
-                f.write('%.16f\n' % img[i])
-            # > write sigma
-            img_sig = np.asarray(self.noise_sigma, np.float64).flatten()
-            for i in range(img_sig.size):
-                f.write('%s.16f\n' % img_sig[i])
 
             # > close
             f.close()
@@ -280,29 +288,29 @@ def f_gauss2d(p, X, Y):
 
 def fit_model_weighted(model_fcn, start_parameters,
                        data, sigmas, *args):
-    std_res = optimize.leastsq(weighted_miss_fit, start_parameters,
-                               (model_fcn, data.ravel(), (1.0 /
-    sigmas).
-                                astype('f').ravel()) + args,
-                               full_output=1)
+    # std_res = optimize.leastsq(weighted_miss_fit, start_parameters,
+    #                            (model_fcn, data.ravel(), (1.0 /
+    # sigmas).
+    #                             astype('f').ravel()) + args,
+    #                            full_output=1)
 
     # res = lmdif(weighted_miss_fit, start_parameters,
     #             (model_fcn, data.ravel(), (1.0 / sigmas).
     #              astype('float64').ravel()) + args,
     #             full_output=1)
 
-    # res = cl_leastsq(11)
-    #
-    # if True:  # DEBUG
-    #     res[2]['fvec'] = weighted_miss_fit(
-    #         res[0],
-    #         model_fcn,
-    #         data.ravel(),
-    #         (1.0 / sigmas).astype('float64').ravel(),
-    #         *args
-    #     )
+    res = cl_leastsq(11)
 
-    return std_res
+    if True:  # DEBUG
+        res[2]['fvec'] = weighted_miss_fit(
+            res[0],
+            model_fcn,
+            data.ravel(),
+            (1.0 / sigmas).astype('float64').ravel(),
+            *args
+        )
+
+    return res
 
 
 def cl_leastsq(L):
