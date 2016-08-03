@@ -52,7 +52,7 @@ def qr_solve(n, r, ldr, ipvt, diag, qtb, x, sdiag):
             on output the full upper triangle is unaltered, and the
             strict lower triangle contains the strict upper triangle
             (transposed) of the upper triangular matrix s
-        ldr: ndarray
+        ldr: int
             a positive integer input variable not less than n
             which specifies the leading dimension of the array r
         ipvt: ndarray

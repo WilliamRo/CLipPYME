@@ -142,6 +142,10 @@ def flush_default_queue():
     context.default_queue.flush()
 
 
+def finish_default_queue():
+    context.default_queue.finish()
+
+
 # endregion : Methods
 
 

@@ -1,13 +1,37 @@
 #ifndef CL_MINPACK_USER_DEF
 #define CL_MINPACK_USER_DEF
 
+//#define USE_AMD_GCN
+//#define USE_AMD
+
 /* define data type */
-#define real double
 #define USE_FLOAT_64
+
+#ifdef USE_FLOAT_64
+#define real double
+#else
+#define real float
+#endif
 
 #define ROI_L 11
 #define M ROI_L*ROI_L
 #define N 7
+
+/* NDRange Info */
+#define M_WORKERS_DIM_2
+#define GREAT_M_DIM_2
+
+#ifndef DIM_2
+#ifdef M_WORKERS_DIM_2
+#define DIM_2
+#endif
+#endif
+
+#ifdef DIM_2
+#define INDEX (gli(0)*ROI_L+gli(1))
+#else
+#define INDEX gli(0)
+#endif
 
 /* parameter struct */
 typedef struct
