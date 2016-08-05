@@ -132,9 +132,13 @@ class Context(cl.Context):
             sources += (pgm._prg,)
         # > try to link
         import pyopencl
-        self.program = pyopencl.link_program(self,
-                                             sources,
-                                             link_options)
+
+        # self.program = pyopencl.link_program(self, sources, link_options)
+
+        options_bytes = ''
+        self.program = pyopencl.Program(
+            pyopencl._Program.link(self, sources, options_bytes, None))
+
         clip.cl.program = self.program
         self.program.__class__ = Program
         return self.program
