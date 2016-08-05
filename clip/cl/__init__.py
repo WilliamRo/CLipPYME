@@ -14,6 +14,8 @@ https://documen.tician.de/pyopencl/
 
 """
 
+import numpy as np
+
 from pyopencl import enqueue_copy
 from pyopencl import wait_for_events
 from pyopencl import LocalMemory
@@ -41,6 +43,8 @@ __all__ = [
 ]
 
 # Initialize variables
+real = np.float32
+
 am = mem_access_mode
 hm = mem_host_ptr_mode
 context = None
