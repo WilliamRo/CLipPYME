@@ -5,7 +5,8 @@
 
 kernel void fit(global real *img, global real *sigma,
 				global real *X, global real *Y,
-				global real *x0, global int *wa)
+				global real *x0, global int *wa, 
+				global real *output, int w)
 	/* FIT
 
 	Parameters
@@ -26,9 +27,13 @@ kernel void fit(global real *img, global real *sigma,
 		on output x0 contains the final estimation
 
 	wa: int array of length 2 * group_size
-		on input wa[0] = image width
 		on output wa[0 + 2 * group_size] = info,
-				  wa[1 2 * group_size] = nfev             */
+				  wa[1 2 * group_size] = nfev
+
+	output: real array
+
+	w: int scalar
+		image width										*/
 {
 	// > get NDRange info
 	int index = INDEX;
@@ -55,7 +60,6 @@ kernel void fit(global real *img, global real *sigma,
 	local int inta[INTN];
 	local int ipvt[N];
 	local int nfev;
-	local int w;
 
 	local real reala[REALN];
 	local real fjac[N * M];
@@ -70,9 +74,6 @@ kernel void fit(global real *img, global real *sigma,
 	local real wa4[M];
 
 	local fcndata p;
-
-	// > initialize w
-	if (index == N) w = wa[0];
 
 	loc_bar;	/// S9150, double, GS64: 2 us
 
@@ -141,6 +142,7 @@ kernel void fit(global real *img, global real *sigma,
 	if (index == N) {
 		wa[0 + 2 * groupID] = inta[INFO];
 		wa[1 + 2 * groupID] = nfev;
+		output[groupID] = reala[FNORM];
 	}
 
 	loc_bar;

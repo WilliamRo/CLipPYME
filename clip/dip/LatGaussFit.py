@@ -46,8 +46,16 @@ result_data_type = [('tIndex', '<i4'),
                     ('subtractedBackground', '<f4')
                     ]
 
-
 # endregion : Format of Results
+
+# region : CL Parameters
+
+wa = np.zeros(2 * 500, np.int32)
+cl_output = np.zeros(500, cl.real)
+x_res = np.zeros(2 * 500, cl.real)
+
+
+# endregion : CL Parameters
 
 class GaussianFitFactory:
     """GaussianFitFactory
@@ -264,12 +272,60 @@ class GaussianFitFactory:
     pass
 
 
+def cl_fit(res_len, img_wid, local_len):
+    global wa, x_res, cl_output
+
+    if 'buf_wa' not in cl.__dict__:
+        cl.buf_wa = cl.context.create_buffer(
+            cl.mem_access_mode.WRITE_ONLY, wa.nbytes)
+        cl.buf_output = cl.context.create_buffer(
+            cl.mem_access_mode.WRITE_ONLY, cl_output.nbytes)
+
+        cl.kernel_fit = cl.program.fit
+
+        cl.kernel_fit.set_arg(0, cl.memImage)
+        cl.kernel_fit.set_arg(1, cl.memSigmaMap)
+        cl.kernel_fit.set_arg(2, cl.memXGrid)
+        cl.kernel_fit.set_arg(3, cl.memYGrid)
+        cl.kernel_fit.set_arg(4, cl.memStartPara)
+        cl.kernel_fit.set_arg(5, cl.buf_wa)
+        cl.kernel_fit.set_arg(6, cl.buf_output)
+        cl.kernel_fit.set_arg(7, np.int32(img_wid))
+
+    evt = cl.kernel_fit.enqueue_nd_range(
+        [local_len * res_len, local_len],
+        local_size=[local_len, local_len])
+
+    cl.flush_default_queue()
+    cl.finish_default_queue()
+
+    cl.memStartPara.enqueue_read(x_res)
+    cl.buf_wa.enqueue_read(wa)
+    cl.buf_output.enqueue_read(cl_output)
+
+
+def from_points(metadata, res_len, img_wid, local_len=11):
+    global FitResultsDType
+    global wa, x_res, cl_output
+
+    cl_fit(res_len, img_wid, local_len)  # TODO
+
+    results = np.empty(res_len, FitResultsDType)
+    for i in range(res_len):
+        results[i] = GaussianFitResultR(
+            x_res[i * 7:(i + 1) * 7], metadata,
+            None, wa[2 * i], np.float32(0), cl_output[i])
+
+    return results
+
+
 # region : Model Functions
 
 
 def f_gauss2d(p, X, Y):
     """2D Gaussian model function with linear background
-     - parameter vector [A, x0, y0, sigma, background, lin_x, lin_y]"""
+     - parameter vector [A, x0, y0, sigma, background, lin_x,
+     lin_y]"""
     A, x0, y0, s, b, b_x, b_y = p
     # delta_x = X[1] - X[0]
     # delta_y = Y[1] - Y[0]
@@ -288,29 +344,29 @@ def f_gauss2d(p, X, Y):
 
 def fit_model_weighted(model_fcn, start_parameters,
                        data, sigmas, *args):
-    # std_res = optimize.leastsq(weighted_miss_fit, start_parameters,
-    #                            (model_fcn, data.ravel(), (1.0 /
-    # sigmas).
-    #                             astype('f').ravel()) + args,
-    #                            full_output=1)
+    std_res = optimize.leastsq(weighted_miss_fit, start_parameters,
+                               (model_fcn, data.ravel(), (1.0 /
+                                                          sigmas).
+                                astype('f').ravel()) + args,
+                               full_output=1)
 
     # res = lmdif(weighted_miss_fit, start_parameters,
     #             (model_fcn, data.ravel(), (1.0 / sigmas).
     #              astype('float64').ravel()) + args,
     #             full_output=1)
 
-    res = cl_leastsq(11)
+    # res = cl_leastsq(11)
+    #
+    # if True:  # DEBUG
+    #     res[2]['fvec'] = weighted_miss_fit(
+    #         res[0],
+    #         model_fcn,
+    #         data.ravel(),
+    #         (1.0 / sigmas).astype('float64').ravel(),
+    #         *args
+    #     )
 
-    if True:  # DEBUG
-        res[2]['fvec'] = weighted_miss_fit(
-            res[0],
-            model_fcn,
-            data.ravel(),
-            (1.0 / sigmas).astype('float64').ravel(),
-            *args
-        )
-
-    return res
+    return std_res
 
 
 def cl_leastsq(L):

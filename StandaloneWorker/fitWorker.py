@@ -119,7 +119,8 @@ class Worker:
         data = data.reshape(data.shape + (1,)) * 1.0
 
         if len(bgindices) >= self.minBgIndicesLen:
-            bg = self.bBuffer.getBackground(bgindices).reshape(data.shape)
+            bg = self.bBuffer.getBackground(bgindices).reshape(
+                data.shape)
         else:
             bg = self.md['Camera.ADOffset']
 
@@ -139,12 +140,13 @@ class Worker:
         pass
 
         # get ofind
-        #import PYME.Analysis.ofind as ofind
+        # import PYME.Analysis.ofind as ofind
         ofdMod = self._getOfind()
 
         # perform objects finding
         debounce = self.md.getOrDefault('Analysis.DebounceRadius', 5)
-        discardClumpRadius = self.md.getOrDefault('Analysis.ClumpRejectRadius', 0)
+        discardClumpRadius = self.md.getOrDefault(
+            'Analysis.ClumpRejectRadius', 0)
 
         if self.findMethod == 'CLOfind':
             ofd = ofdMod.ObjectIdentifier(data.astype('f'), bg)
@@ -176,19 +178,29 @@ class Worker:
 
         # without this line fitFac.FromPoint will fail
         self.md.tIndex = index
+        res_len = len(ofd)  # TODO
 
         if 'FitResultsDType' in dir(fitMod):
             res = np.empty(len(ofd), fitMod.FitResultsDType)
             if 'Analysis.ROISize' in self.md.getEntryNames():
                 rs = self.md.getEntry('Analysis.ROISize')
-                for i in range(len(ofd)):
-                    p = ofd[i]
-                    res[i] = fitFac.FromPoint(p.x, p.y, roiHalfSize=rs)
+                res = fitMod.from_points(self.md, res_len,
+                                         data.shape[1],
+                                         2 * rs + 1)
+
+                # for i in range(len(ofd)):
+                #     p = ofd[i]
+                #     res[i] = fitFac.FromPoint(p.x, p.y,
+                # roiHalfSize=rs)
+
             else:
-                for i in range(len(ofd)):
-                    p = ofd[i]
-                    # if i is 31:
-                    res[i] = fitFac.FromPoint(p.x, p.y)
+                # for i in range(len(ofd)):
+                #     p = ofd[i]
+                #     res[i] = fitFac.FromPoint(p.x, p.y)
+
+                res = fitMod.from_points(self.md, res_len,
+                                         data.shape[1])
+
         else:
             res = [fitFac.FromPoint(p.x, p.y) for p in ofd]
 
@@ -203,19 +215,23 @@ class Worker:
     def _getFitMod(self):
         # import CL based modules
         if self.fitModule == 'LatGaussFitFR':
-            return __import__('clip.dip.LatGaussFit', fromlist=['clip', 'dip'])
+            return __import__('clip.dip.LatGaussFit',
+                              fromlist=['clip', 'dip'])
         # import PYME modules
         else:
-            return __import__('PYME.Analysis.FitFactories.' + self.fitModule,
-                              fromlist=['PYME', 'Analysis', 'FitFactories'])
+            return __import__(
+                'PYME.Analysis.FitFactories.' + self.fitModule,
+                fromlist=['PYME', 'Analysis', 'FitFactories'])
 
     def _getOfind(self):
         # import CL based modules
         if self.findMethod == 'CLOfind':
-            return __import__('clip.dip.ofind', fromlist=['clip', 'dip'])
+            return __import__('clip.dip.ofind',
+                              fromlist=['clip', 'dip'])
         # import PYME modules
         else:
-            return __import__('PYME.Analysis.ofind', fromlist=['PYME', 'Analysis'])
+            return __import__('PYME.Analysis.ofind',
+                              fromlist=['PYME', 'Analysis'])
 
     def calcSigma(self, data):
         var = cameraMaps.getVarianceMap(self.md)
@@ -224,9 +240,11 @@ class Worker:
         e = self.md.Camera.ElectronsPerCount
         t = self.md.Camera.TrueEMGain
         # print data[5,7]
-        # print np.sqrt(var + (n ** 2) * (e * t * np.maximum(data[5,7], 1) + t * t)) / e
+        # print np.sqrt(var + (n ** 2) * (e * t * np.maximum(data[5,
+        # 7], 1) + t * t)) / e
 
-        return np.sqrt(var + (n ** 2) * (e * t * np.maximum(data, 1) + t * t)) / e
+        return np.sqrt(
+            var + (n ** 2) * (e * t * np.maximum(data, 1) + t * t)) / e
 
     def calcThreshold(self, sigma):
         if self.SNThreshold:
