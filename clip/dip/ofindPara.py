@@ -93,7 +93,8 @@ class clMetadata(ct.Structure):
                 ("bgStartInd", ct.c_int),
                 ("bgEndInd", ct.c_int),
                 ("maxFrameNum", ct.c_int),
-                ("minBgIndicesLen", ct.c_int)]
+                ("minBgIndicesLen", ct.c_int),
+                ("roiHalfSize", ct.c_int)]
 
 # endregion
 
@@ -209,7 +210,7 @@ def PrintTotalInformation():
 
     for i in xrange(len(subBgEvent)):
         gpuTotalTime.append(debounceCandiEvent[i].get_profiling_info(CL_PROFILING_COMMAND_END)\
-                            - subBgEvent[i].get_profiling_info(CL_PROFILING_COMMAND_START))
+                            - copyIntoDeviceEvent[i].get_profiling_info(CL_PROFILING_COMMAND_START))
 
     headList = ['Kernel Name', '# of Calls', 'Total Time(ms)', 'Avg Time(ms)',\
                 'Max Time(ms)', 'Min Time(ms)']
@@ -226,6 +227,7 @@ def PrintTotalInformation():
     PrintKernelInformation('candiObj', candiObjEvent, headList)
     PrintKernelInformation('candiMain', candiMainEvent, headList)
     PrintKernelInformation('debounceCandi', debounceCandiEvent, headList)
+    PrintKernelInformation('fitInit', fitInitEvent, headList)
     # PrintKernelInformation('copyIntoHost', copyIntoHostEvent, headList)
     PrintKernelInformation('gpuTotal', gpuTotalTime, headList, 'time')
     PrintKernelInformation('cpuTotal',
@@ -249,6 +251,7 @@ candiInitEvent = []
 candiObjEvent = []
 candiMainEvent = []
 debounceCandiEvent = []
+fitInitEvent = []
 copyIntoHostEvent = []
 
 # record cpu time
@@ -282,7 +285,7 @@ w = (Ftype * (highFilterLength))()
 for i in xrange(highFilterLength):
     w[i] = Ftype(weights[i])
 md = clMetadata(170,140,1,0.08,0.08,0.10,True,4,12,9,25,wl,wh,w,\
-                0.0,1.0,1.0,1.0,5.0,1.0,1.0,5,True,-20,0,100,1)
+                0.0,1.0,1.0,1.0,5.0,1.0,1.0,5,True,-20,0,100,1,5)
 
 
 # endregion : create metadata
@@ -324,6 +327,7 @@ cl.candiInit = program.calcCandiPosiInit
 cl.getObject = program.getCandiPosiObj
 cl.candiMain = program.caclCandiPosiMain
 cl.debCandi = program.debounceCandiPosi
+cl.fitInit = program.fitInit
 
 # endregion : create kernel
 
@@ -349,6 +353,9 @@ cl.memCandiPosi = context.create_buffer(ma.READ_WRITE, 2 * maxCount * typeFloatS
 cl.memTempCandiPosi = context.create_buffer(ma.READ_WRITE, 2 * maxCount * typeFloatSize)
 cl.memCandiRegion = context.create_buffer(ma.READ_WRITE, 4 * maxCount* typeIntSize)
 cl.memCandiCount = context.create_buffer(ma.READ_WRITE, 2 * typeIntSize)
+cl.memXGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roihalfSize+1) * typeFloatSize)
+cl.memYGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roihalfSize+1) * typeFloatSize)
+cl.memStartPara = context.create_buffer(ma.READ_WRITE, 7 * maxCount * typeFloatSize)
 
 # endregion : create memory buffer
 
@@ -384,8 +391,8 @@ cl.filterGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
 cl.filterGlobalDimVec = [((md.imageHeight + 31)&~31),
                              ((md.imageWidth + 31)&~31)/2, 1]
 # cl.filterGlobalDim = [md.imageHeight, md.imageWidth, 1]
-cl.filterLocalDim = [1, 256, 1]
-# cl.filterLocalDim = None
+# cl.filterLocalDim = [1, 256, 1]
+cl.filterLocalDim = None
 
 cl.labelInit.set_arg(0, cl.memLabeledImage)
 cl.labelInit.set_arg(1, cl.memBinaryImage)
@@ -396,12 +403,13 @@ cl.labelMain.set_arg(1, cl.memMetadata)
 cl.labelMain.set_arg(2, cl.memSyncIndex)
 cl.labelMain.set_arg(3, cl.memPass)
 cl.labelGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
-cl.labelLocalDim = [1, 256, 1]
-# cl.labelLocalDim = None
+# cl.labelLocalDim = [1, 256, 1]
+cl.labelLocalDim = None
 
 cl.labelSync.set_arg(0, cl.memSyncIndex)
-labelSyncGlobalDim = [2,1,1]
-labelSyncLocalDim = [1,2,1]
+labelSyncGlobalDim = [1,1,1]
+# labelSyncLocalDim = [1,1,1]
+labelSyncLocalDim = None
 
 cl.candiInit.set_arg(0, cl.memLabeledImage)
 cl.candiInit.set_arg(1, cl.memCandiRegion)
@@ -422,7 +430,7 @@ cl.candiMain.set_arg(2, cl.memTempCandiPosi)
 cl.candiMain.set_arg(3, cl.memCandiCount)
 cl.candiMain.set_arg(4, cl.memMetadata)
 cl.candiMainGlobalDim = [(maxCount+31)&~31, 1, 1]
-cl.candiMainLocalDim = [1, 256, 1]
+# cl.candiMainLocalDim = [1, 256, 1]
 cl.candiMainLocalDim = None
 
 cl.debCandi.set_arg(0, cl.memFilteredImage)
@@ -430,6 +438,20 @@ cl.debCandi.set_arg(1, cl.memCandiPosi)
 cl.debCandi.set_arg(2, cl.memTempCandiPosi)
 cl.debCandi.set_arg(3, cl.memCandiCount)
 cl.debCandi.set_arg(4, cl.memMetadata)
+
+cl.fitInit.set_arg(0, cl.memImageStack)
+cl.fitInit.set_arg(1, cl.memImage)
+cl.fitInit.set_arg(2, cl.memBufferIndex)
+cl.fitInit.set_arg(3, cl.memCandiPosi)
+cl.fitInit.set_arg(4, cl.memCandiCount)
+cl.fitInit.set_arg(5, cl.memXGrid)
+cl.fitInit.set_arg(6, cl.memYGrid)
+cl.fitInit.set_arg(7, cl.memStartPara)
+cl.fitInit.set_arg(8, cl.memMetadata)
+roiSize = (2 * md.roiHalfSize + 1 + 15)&~15
+cl.fitInitGlobalDim = [roiSize, roiSize, (maxCount+15)&~15]
+cl.fitInitLocalDim = [roiSize, roiSize, 1]
+
 
 # endregion : set kernel arguments and wotk item dimension
 
