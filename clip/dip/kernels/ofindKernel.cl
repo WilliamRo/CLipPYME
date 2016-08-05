@@ -73,6 +73,9 @@ struct Metadata
 	int bgEndInd;
 	int maxFrameNum;
 	int minBgIndicesLen;
+
+	// Fit setting
+	int roiHalfSize;
 };
 
 kernel void initBuffer(global int * bufferIndex,
@@ -462,6 +465,67 @@ kernel void debounceCandiPosi(global Ftype * filteredImage,
 		candiPosi[2 * order + 1] = posiy;	
 	}
 
+}
+
+#define ROISIZE 11
+
+kernel void fitInit(global Ftype * imageStack,
+					global Ftype * image,
+					global int * bufferIndex,
+					global Ftype * candiPosi,
+					global int * count,
+					global Ftype * xGrid,
+					global Ftype * yGrid,
+					global Ftype * startParameters,
+					constant struct Metadata * md)
+{
+	const int groupId = get_group_id(1), localId = get_local_id(0), roiSize = 2 * md->roiHalfSize + 1;
+	if(groupId >= count[1] || localId >= roiSize) return;
+
+	// calculate X,Y grid
+	Ftype2 posi = round((Ftype2){candiPosi[2*groupId], candiPosi[2*groupId+1]});
+	int xSlice = clamp(localId + (int)posi.x - md->roiHalfSize, 0, md->imageHeight),
+		ySlice = clamp(localId + (int)posi.y - md->roiHalfSize, 0, md->imageWidth);
+	xGrid[groupId*roiSize+localId] = 1000 * md->voxelSizeX * xSlice;
+	yGrid[groupId*roiSize+localId] = 1000 * md->voxelSizeY * ySlice;
+
+	// calculate startParameters
+	local Ftype tempRes[ROISIZE*3];
+	float3 temp = (float3)0;
+	int imagePosi = xSlice * md->imageWidth,
+		stackPosi =  bufferIndex[0] * md->imageWidth * md->imageHeight + imagePosi;
+	// (x) workitem calculate xth row's data_max, data_min, dataMean_min 
+	for (int i = 0; i < ROISIZE; i++)
+	{
+		temp.x = fmax(imageStack[stackPosi+i], temp.x);
+		temp.y = fmin(imageStack[stackPosi+i], temp.y);
+		temp.z = fmin(image[imagePosi+i], temp.z);
+	}
+	tempRes[3*localId] = temp.x;
+	tempRes[3*localId+1] = temp.y;
+	tempRes[3*localId+2] = temp.z;
+	barrier(CLK_LOCAL_MEM_FENCE);
+	// gather in (0,0)workitem
+	local Ftype tempA[3];
+	if (localId == 0)
+	{
+		tempA[0] = tempA[1] = tempA[2] =  0.0f;
+		for (int i = 0; i < ROISIZE; i++)
+		{
+			tempA[0] = fmax(tempRes[3*i], tempA[0]);
+			tempA[1] = fmin(tempRes[3*i+1], tempA[1]);
+			tempA[2] = fmin(tempRes[3*i+2], tempA[2]);
+		}
+		// store startParameters
+		startParameters[7*groupId+0] = tempA[0] - tempA[1];
+		startParameters[7*groupId+1] = 1000 * md->voxelSizeX * candiPosi[2*groupId];
+		startParameters[7*groupId+2] = 1000 * md->voxelSizeY * candiPosi[2*groupId+1];
+		startParameters[7*groupId+3] = 250 / 2.35;
+		startParameters[7*groupId+4] = tempA[2];
+		startParameters[7*groupId+5] = 0.001;
+		startParameters[7*groupId+6] = 0.001;
+	}
+	
 }
 
 

@@ -353,8 +353,8 @@ cl.memCandiPosi = context.create_buffer(ma.READ_WRITE, 2 * maxCount * typeFloatS
 cl.memTempCandiPosi = context.create_buffer(ma.READ_WRITE, 2 * maxCount * typeFloatSize)
 cl.memCandiRegion = context.create_buffer(ma.READ_WRITE, 4 * maxCount* typeIntSize)
 cl.memCandiCount = context.create_buffer(ma.READ_WRITE, 2 * typeIntSize)
-cl.memXGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roihalfSize+1) * typeFloatSize)
-cl.memYGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roihalfSize+1) * typeFloatSize)
+cl.memXGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roiHalfSize+1) * typeFloatSize)
+cl.memYGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roiHalfSize+1) * typeFloatSize)
 cl.memStartPara = context.create_buffer(ma.READ_WRITE, 7 * maxCount * typeFloatSize)
 
 # endregion : create memory buffer
@@ -449,8 +449,8 @@ cl.fitInit.set_arg(6, cl.memYGrid)
 cl.fitInit.set_arg(7, cl.memStartPara)
 cl.fitInit.set_arg(8, cl.memMetadata)
 roiSize = (2 * md.roiHalfSize + 1 + 15)&~15
-cl.fitInitGlobalDim = [roiSize, roiSize, (maxCount+15)&~15]
-cl.fitInitLocalDim = [roiSize, roiSize, 1]
+cl.fitInitGlobalDim = [roiSize, (maxCount+15)&~15]
+cl.fitInitLocalDim = [roiSize, 1]
 
 
 # endregion : set kernel arguments and wotk item dimension

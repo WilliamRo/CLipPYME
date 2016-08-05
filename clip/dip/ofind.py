@@ -274,14 +274,14 @@ class ObjectIdentifier(list):
                 cpuStartTime.append(time.time())
             # copy data into device
 
+            copyIntoDeviceEvent.append(
+                cl.enqueue_copy(commandQueue,
+                                cl.memImageStack,
+                                self.clData,
+                                device_offset=index * pixelCount * typeFloatSize,
+                                is_blocking=False)
+            )
             if i is 0:
-                copyIntoDeviceEvent.append(
-                    cl.enqueue_copy(commandQueue,
-                                    cl.memImageStack,
-                                    self.clData,
-                                    device_offset=index * pixelCount * typeFloatSize,
-                                    is_blocking=False)
-                )
                 cl.enqueue_copy(commandQueue,
                                 cl.memBufferIndex,
                                 numpy.array(index,'int32'),
@@ -349,6 +349,13 @@ class ObjectIdentifier(list):
                 cl.debCandi.enqueue_nd_range(cl.candiMainGlobalDim,
                                              commandQueue,
                                              cl.candiMainLocalDim)
+            )
+
+            # fit initialization
+            fitInitEvent.append(
+                cl.fitInit.enqueue_nd_range(cl.fitInitGlobalDim,
+                                            commandQueue,
+                                            cl.fitInitLocalDim)
             )
 
             commandQueue.flush()
