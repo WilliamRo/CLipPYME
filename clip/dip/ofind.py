@@ -11,7 +11,6 @@ from scipy.spatial import ckdtree
 import  numpy as np
 import time
 from ofindPara import *
-import pyopencl as pycl
 #import pylab
 
 class OfindPoint:
@@ -52,7 +51,7 @@ class PseudoPointList:
     #    return self[self.curpos]
 
 class ObjectIdentifier(list):
-    def __init__(self, data, bg):
+    def __init__(self, data, bg, metadata):
         """Creates an Identifier object to be used for object finding, takes a 2D or 3D slice
         into a data stack (data), and a filtering mode (filterMode, one of ["fast", "good"])
         where "fast" performs a z-projection and then filters, wheras "good" filters in 3D before
@@ -62,7 +61,9 @@ class ObjectIdentifier(list):
 
         self.clData = data.astype('f').reshape([pixelCount])
         self.data = data.astype('f')
+        self.rawData = self.data
         self.bg = bg
+        self.metadata = metadata
 
     def __FilterData2D(self,data):
         mode = _ni_support._extend_mode_to_code("reflect")
@@ -263,13 +264,14 @@ class ObjectIdentifier(list):
         # run kernel in device
         self.clFilteredData = numpy.zeros(pixelCount, 'float32')
         self.candiPosi = numpy.zeros([maxCount*2], 'float32')
-        self.candiCount = numpy.array(0)
+        self.candiCount = numpy.zeros(2, 'int32')
         self.clBinaryImage = numpy.zeros(pixelCount, 'uint16')
         self.clLabel = numpy.zeros(pixelCount, 'int32')
         self.clThreshold = numpy.zeros(pixelCount, 'float32')
         self.clDebounceCandi = numpy.zeros(maxCount*2, 'float32')
+        self.clStartPara = numpy.zeros(maxCount*7, 'float32')
 
-        for i in xrange(10):
+        for i in xrange(1):
             if i != 0:
                 cpuStartTime.append(time.time())
             # copy data into device
@@ -281,20 +283,18 @@ class ObjectIdentifier(list):
                                 device_offset=index * pixelCount * typeFloatSize,
                                 is_blocking=False)
             )
-            if i is 0:
-                cl.enqueue_copy(commandQueue,
-                                cl.memBufferIndex,
-                                numpy.array(index,'int32'),
-                                is_blocking = False)
-                cl.enqueue_copy(commandQueue,
-                                cl.memCandiCount,
-                                np.array(candiCount),
-                                is_blocking = False)
-            else:
-                initBufferEvent.append(
-                    cl.initBuffer.enqueue_nd_range(cl.initBufferGlobalDim,
-                                                   commandQueue)
-                )
+            cl.enqueue_copy(commandQueue,
+                            cl.memBufferIndex,
+                            numpy.array(index,'int32'),
+                            is_blocking = False)
+            cl.enqueue_copy(commandQueue,
+                            cl.memCandiCount,
+                            np.array(candiCount),
+                            is_blocking = False)
+            initBufferEvent.append(
+                cl.initBuffer.enqueue_nd_range(cl.initBufferGlobalDim,
+                                               commandQueue)
+            )
 
             # subtract bg and get sigma map threshold map
             subBgEvent.append(
@@ -363,121 +363,182 @@ class ObjectIdentifier(list):
 
             if i != 0:
                 cpuEndTime.append(time.time())
+        if viewKernelInfo:
 
-        PrintTotalInformation()
+            PrintTotalInformation()
 
-        # copy data into host
-        cl.enqueue_copy(commandQueue, self.clLabel,cl.memLabeledImage)
-        cl.enqueue_copy(commandQueue, self.candiCount,cl.memCandiCount)
-        cl.enqueue_copy(commandQueue, self.clDebounceCandi,cl.memCandiPosi)
-        cl.enqueue_copy(commandQueue, self.clFilteredData, cl.memFilteredImage)
-        cl.enqueue_copy(commandQueue, self.clBinaryImage, cl.memBinaryImage)
-        cl.enqueue_copy(commandQueue, self.clThreshold, cl.memThresholdMap)
-        cl.enqueue_copy(commandQueue, self.candiPosi, cl.memTempCandiPosi).wait()
+        if verify:
 
-        self.clFilteredData = self.clFilteredData.reshape([md.imageHeight, md.imageWidth])
+            # copy data into host
+            cl.enqueue_copy(commandQueue, self.clLabel,cl.memLabeledImage)
+            cl.enqueue_copy(commandQueue, self.candiCount,cl.memCandiCount)
+            cl.enqueue_copy(commandQueue, self.clDebounceCandi,cl.memCandiPosi)
+            cl.enqueue_copy(commandQueue, self.clFilteredData, cl.memFilteredImage)
+            cl.enqueue_copy(commandQueue, self.clBinaryImage, cl.memBinaryImage)
+            cl.enqueue_copy(commandQueue, self.clThreshold, cl.memThresholdMap)
+            cl.enqueue_copy(commandQueue, self.clStartPara, cl.memStartPara)
+            cl.enqueue_copy(commandQueue, self.candiPosi, cl.memTempCandiPosi).wait()
 
-        # compareMatrix(self.data - self.bg,
-        #                    self.clData.reshape([md.imageHeight, md.imageWidth]),
-        #                    '>>> 0. Subtracted image')
-        #
-        # compareMatrix(self.lowerThreshold,
-        #                self.clThreshold.reshape([md.imageHeight, md.imageWidth]),
-        #                '>>> 0.1. Threshold')
+            self.clFilteredData = self.clFilteredData.reshape([md.imageHeight, md.imageWidth])
 
-        # >>>> 1. do filtering
-        self.data = self.data - self.bg
-        self.data = self.data * (self.data > 0)
-        self.filteredData = self.__FilterDataFast()
-        self.filteredData *= (self.filteredData > 0)
+            compareMatrix(self.data - self.bg,
+                               self.clData.reshape([md.imageHeight, md.imageWidth]),
+                               '>>> 0. Subtracted image')
 
-        # apply mask
-        maskedFilteredData = self.filteredData
-        # maskedFilteredData = self.clFilteredData
+            compareMatrix(self.lowerThreshold,
+                           self.clThreshold.reshape([md.imageHeight, md.imageWidth]),
+                           '>>> 0.1. Threshold')
 
-        # manually mask the edge pixels
-        if maskEdgeWidth and self.filteredData.shape[1] > maskEdgeWidth:
-            maskedFilteredData[:, :maskEdgeWidth] = 0
-            maskedFilteredData[:, -maskEdgeWidth:] = 0
-            maskedFilteredData[-maskEdgeWidth:, :] = 0
-            maskedFilteredData[:maskEdgeWidth, :] = 0
+            # >>>> 1. do filtering
+            self.data = self.data - self.bg
+            self.data = self.data * (self.data > 0)
+            self.filteredData = self.__FilterDataFast()
+            self.filteredData *= (self.filteredData > 0)
 
-        compareMatrix(self.clFilteredData, maskedFilteredData,
-                           '>>> 1. Filter result', 0.01)
+            # apply mask
+            maskedFilteredData = self.filteredData
+            # maskedFilteredData = self.clFilteredData
 
-        X,Y = numpy.mgrid[0:maskedFilteredData.shape[0], 0:maskedFilteredData.shape[1]]
+            # manually mask the edge pixels
+            if maskEdgeWidth and self.filteredData.shape[1] > maskEdgeWidth:
+                maskedFilteredData[:, :maskEdgeWidth] = 0
+                maskedFilteredData[:, -maskEdgeWidth:] = 0
+                maskedFilteredData[-maskEdgeWidth:, :] = 0
+                maskedFilteredData[:maskEdgeWidth, :] = 0
 
-        #store x, y, and thresholds
-        xs = []
-        ys = []
-        ts = []
+            compareMatrix(self.clFilteredData, maskedFilteredData,
+                               '>>> 1. Filter result', 0.01)
 
-        # >>>> 2. applying threshold
-        im = maskedFilteredData
-        imt = im > self.lowerThreshold
-        climt = self.clBinaryImage.reshape([md.imageHeight, md.imageWidth])
-        compareMatrix(imt, climt, '>>> 2. Applying threshold', 0)
+            X,Y = numpy.mgrid[0:maskedFilteredData.shape[0], 0:maskedFilteredData.shape[1]]
 
-        # >>>> 3. labeling image
-        (labeledPoints, nLabeled) = ndimage.label(imt)
+            #store x, y, and thresholds
+            xs = []
+            ys = []
+            ts = []
 
-        labelSet = set(self.clLabel)
-        labelList = []
-        for i in labelSet:
-            labelList.append(i)
-        labelList.sort()
-        self.clLabel = self.clLabel.reshape([md.imageHeight, md.imageWidth])
-        for i in xrange(nLabeled):
-            self.clLabel[self.clLabel == labelList[i+1]] = i+1;
-        # compareMatrix(labeledPoints, self.clLabel, '>>> 3. Label', 0)
+            # >>>> 2. applying threshold
+            im = maskedFilteredData
+            imt = im > self.lowerThreshold
+            climt = self.clBinaryImage.reshape([md.imageHeight, md.imageWidth])
+            compareMatrix(imt, climt, '>>> 2. Applying threshold', 0)
 
-        objSlices = ndimage.find_objects(labeledPoints)
+            # >>>> 3. labeling image
+            (labeledPoints, nLabeled) = ndimage.label(imt)
 
-        # >>>> 4. calculateing candidate position
-        for i in range(nLabeled):
-            #measure position
-            imO = im[objSlices[i]]
-            x = (X[objSlices[i]]*imO).sum()/imO.sum()
-            y = (Y[objSlices[i]]*imO).sum()/imO.sum()
+            labelSet = set(self.clLabel)
+            labelList = []
+            for i in labelSet:
+                labelList.append(i)
+            labelList.sort()
+            self.clLabel = self.clLabel.reshape([md.imageHeight, md.imageWidth])
+            for i in xrange(nLabeled):
+                self.clLabel[self.clLabel == labelList[i+1]] = i+1;
+            # compareMatrix(labeledPoints, self.clLabel, '>>> 3. Label', 0)
 
-            #and add to list
-            xs.append(x)
-            ys.append(y)
-            ts.append(self.lowerThreshold)
+            objSlices = ndimage.find_objects(labeledPoints)
 
-        candiRes = numpy.zeros([nLabeled,2],dtype='f')
-        clCandiRes = numpy.zeros([nLabeled,2],dtype='f')
-        for i in xrange(nLabeled):
-            candiRes[i,0] = xs[i]
-            candiRes[i,1] = ys[i]
-            clCandiRes[i,0] = self.candiPosi[2*i]
-            clCandiRes[i,1] = self.candiPosi[2*i+1]
-        candiRes[:,0].sort()
-        candiRes[:,1].sort()
-        clCandiRes[:,0].sort()
-        clCandiRes[:,1].sort()
-        compareMatrix(candiRes,clCandiRes,
-                           '>>> 4. Calculating candidate position', tol=0.01)
+            # >>>> 4. calculateing candidate position
+            for i in range(nLabeled):
+                #measure position
+                imO = im[objSlices[i]]
+                x = (X[objSlices[i]]*imO).sum()/imO.sum()
+                y = (Y[objSlices[i]]*imO).sum()/imO.sum()
 
-        xs = numpy.array(xs)
-        ys = numpy.array(ys)
+                #and add to list
+                xs.append(x)
+                ys.append(y)
+                ts.append(self.lowerThreshold)
 
-        if discardClumpRadius > 0:
-            print 'ditching clumps'
-            xs, ys = self.__discardClumped(xs, ys, discardClumpRadius)
+            candiRes = numpy.zeros([nLabeled,2],dtype='f')
+            clCandiRes = numpy.zeros([nLabeled,2],dtype='f')
+            for i in xrange(nLabeled):
+                candiRes[i,0] = xs[i]
+                candiRes[i,1] = ys[i]
+                clCandiRes[i,0] = self.candiPosi[2*i]
+                clCandiRes[i,1] = self.candiPosi[2*i+1]
+            candiRes[:,0].sort()
+            candiRes[:,1].sort()
+            clCandiRes[:,0].sort()
+            clCandiRes[:,1].sort()
+            compareMatrix(candiRes,clCandiRes,
+                               '>>> 4. Calculating candidate position', tol=0.01)
 
-        xs, ys = self.__Debounce(xs, ys, debounceRadius)
-        clxs = []
-        clys = []
-        for i in xrange(maxCount):
-            if (self.clDebounceCandi[2*i] != 0) and \
-                (self.clDebounceCandi[2*i+1] != 0):
-                clxs.append(self.clDebounceCandi[2*i])
-                clys.append(self.clDebounceCandi[2*i+1])
-         # xs, ys = self.Debounce(xs, ys, debounceRadius)
+            xs = numpy.array(xs)
+            ys = numpy.array(ys)
 
-        for x, y, t in zip(xs, ys, ts):
-            self.append(OfindPoint(x,y,t))
+            if discardClumpRadius > 0:
+                print 'ditching clumps'
+                xs, ys = self.__discardClumped(xs, ys, discardClumpRadius)
+
+            xs, ys = self.__Debounce(xs, ys, debounceRadius)
+             # xs, ys = self.Debounce(xs, ys, debounceRadius)
+
+            for x, y, t in zip(xs, ys, ts):
+                self.append(OfindPoint(x,y,t))
+
+            # >>> 5. fit initialization
+            startPara = numpy.zeros([self.candiCount[1], 7], 'float32')
+            roiHalfSize = 5
+            for i in xrange(self.candiCount[1]):
+                px = self.clDebounceCandi[2 * i]
+                py = self.clDebounceCandi[2 * i + 1]
+                x = round(px)
+                y = round(py)
+                xslice = slice(max((x - roiHalfSize), 0), min((x + roiHalfSize + 1), self.data.shape[0]))
+                yslice = slice(max((y - roiHalfSize), 0), min((y + roiHalfSize + 1), self.data.shape[1]))
+                dataROI = self.rawData[xslice, yslice] - self.metadata.Camera.ADOffset
+
+                if not self.bg is None and len(np.shape(self.bg)) > 1 and not (
+                                'Analysis.subtractBackground' in self.metadata.getEntryNames() and self.metadata.Analysis.subtractBackground == False):
+                    bgROI = self.bg[xslice, yslice]- self.metadata.Camera.ADOffset
+                else:
+                    bgROI = 0
+                dataMean = dataROI - bgROI
+                A = dataROI.max() - dataROI.min()
+                if i is 0:
+                    print 'In python:'
+                    print 'dataROI_max is %f, dataROI_min is %f, dataMean_min is %f' \
+                        % (dataROI.max(), dataROI.min(), dataMean.min())
+                    print 'position is (%f,%f)' % (px, py)
+                x0 = 1e3 * self.metadata.voxelsize.x * px
+                y0 = 1e3 * self.metadata.voxelsize.y * py
+                startPara[i, :] = [A, x0, y0, 250 / 2.35, dataMean.min(), .001, .001]
+            clStartPara = self.clStartPara.reshape([maxCount, 7])
+            clStartPara = clStartPara[:self.candiCount[1], :]
+            for i in xrange(7):
+                clStartPara[:, i].sort()
+                startPara[:, i].sort()
+            compareMatrix(clStartPara, startPara, '>>> 5. Fit initialization',0.01)
+
+
+        else:
+            cl.enqueue_copy(commandQueue, self.candiCount, cl.memCandiCount)
+            cl.enqueue_copy(commandQueue, self.clFilteredData, cl.memFilteredImage)
+            cl.enqueue_copy(commandQueue, self.candiPosi, cl.memTempCandiPosi).wait()
+            xs = []
+            ys = []
+            ts = []
+            for i in xrange(self.candiCount[0]):
+                xs.append(self.candiPosi[2*i])
+                ys.append(self.candiPosi[2*i+1])
+                ts.append(self.lowerThreshold)
+            xs = numpy.array(xs)
+            ys = numpy.array(ys)
+
+            self.filteredData = self.clFilteredData.reshape([md.imageHeight, md.imageWidth])
+            xs, ys = self.__Debounce(xs, ys, debounceRadius)
+
+            for x, y, t in zip(xs, ys, ts):
+                self.append(OfindPoint(x, y, t))
+            # clxs = []
+            # clys = []
+            # ts = []
+            # for i in xrange(self.candiCount[1]):
+            #     clxs.append(self.clDebounceCandi[2 * i])
+            #     clys.append(self.clDebounceCandi[2 * i + 1])
+            #     ts.append(self.lowerThreshold)
+            # for x, y, t in zip(clxs, clys, ts):
+            #     self.append(OfindPoint(x,y,t))
 
 
         #create pseudo lists to allow indexing along the lines of self.x[i]

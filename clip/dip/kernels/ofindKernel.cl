@@ -483,7 +483,7 @@ kernel void fitInit(global Ftype * imageStack,
 	if(groupId >= count[1] || localId >= roiSize) return;
 
 	// calculate X,Y grid
-	Ftype2 posi = round((Ftype2){candiPosi[2*groupId], candiPosi[2*groupId+1]});
+	Ftype2 cPosi = {candiPosi[2*groupId], candiPosi[2*groupId+1]}, posi = round(cPosi);
 	int xSlice = clamp(localId + (int)posi.x - md->roiHalfSize, 0, md->imageHeight),
 		ySlice = clamp(localId + (int)posi.y - md->roiHalfSize, 0, md->imageWidth);
 	xGrid[groupId*roiSize+localId] = 1000 * md->voxelSizeX * xSlice;
@@ -492,10 +492,13 @@ kernel void fitInit(global Ftype * imageStack,
 	// calculate startParameters
 	local Ftype tempRes[ROISIZE*3];
 	float3 temp = (float3)0;
-	int imagePosi = xSlice * md->imageWidth,
+	int imagePosi = xSlice * md->imageWidth + clamp((int)posi.y - md->roiHalfSize, 0, md->imageWidth),
 		stackPosi =  bufferIndex[0] * md->imageWidth * md->imageHeight + imagePosi;
 	// (x) workitem calculate xth row's data_max, data_min, dataMean_min 
-	for (int i = 0; i < ROISIZE; i++)
+	temp.x = imageStack[stackPosi];
+	temp.y = imageStack[stackPosi];
+	temp.z = image[imagePosi];
+	for (int i = 1; i < ROISIZE; i++)
 	{
 		temp.x = fmax(imageStack[stackPosi+i], temp.x);
 		temp.y = fmin(imageStack[stackPosi+i], temp.y);
@@ -509,8 +512,10 @@ kernel void fitInit(global Ftype * imageStack,
 	local Ftype tempA[3];
 	if (localId == 0)
 	{
-		tempA[0] = tempA[1] = tempA[2] =  0.0f;
-		for (int i = 0; i < ROISIZE; i++)
+		tempA[0] = tempRes[0]; 
+		tempA[1] = tempRes[1];
+		tempA[2] = tempRes[2];
+		for (int i = 1; i < ROISIZE; i++)
 		{
 			tempA[0] = fmax(tempRes[3*i], tempA[0]);
 			tempA[1] = fmin(tempRes[3*i+1], tempA[1]);
@@ -518,8 +523,8 @@ kernel void fitInit(global Ftype * imageStack,
 		}
 		// store startParameters
 		startParameters[7*groupId+0] = tempA[0] - tempA[1];
-		startParameters[7*groupId+1] = 1000 * md->voxelSizeX * candiPosi[2*groupId];
-		startParameters[7*groupId+2] = 1000 * md->voxelSizeY * candiPosi[2*groupId+1];
+		startParameters[7*groupId+1] = 1000 * md->voxelSizeX * cPosi.x;
+		startParameters[7*groupId+2] = 1000 * md->voxelSizeY * cPosi.y;
 		startParameters[7*groupId+3] = 250 / 2.35;
 		startParameters[7*groupId+4] = tempA[2];
 		startParameters[7*groupId+5] = 0.001;
