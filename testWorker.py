@@ -214,17 +214,17 @@ for i in range(0, nrows):
     k = 0
     min_delta = -1
     for j in range(nrows):
-        delta = abs(res[i][5] - stdres[j][5])
+        delta = abs(res[j][5] - stdres[i][5])
         if min_delta < 0 or delta < min_delta:
             min_delta = delta
             k = j
 
     for j in range(0, ncols):
-        d = abs((stdres[k][1][j] - res[i][1][j]) / stdres[k][1][j])
+        d = abs((stdres[i][1][j] - res[k][1][j]) / stdres[i][1][j])
         if d > tol:
             errCount += 1
-            content = getErrorText(i, res[i][1], stdres[k][1],
-                                   res[i][5], stdres[k][5])
+            content = getErrorText(i, res[k][1], stdres[i][1],
+                                   res[k][5], stdres[i][5])
             veriFile.writelines(content)
             break
 

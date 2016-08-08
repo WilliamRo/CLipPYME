@@ -52,7 +52,7 @@ result_data_type = [('tIndex', '<i4'),
 
 wa = np.zeros(2 * 500, np.int32)
 cl_output = np.zeros(500, cl.real)
-x_res = np.zeros(2 * 500, cl.real)
+x_res = np.zeros(7 * 500, cl.real)
 
 
 # endregion : CL Parameters
