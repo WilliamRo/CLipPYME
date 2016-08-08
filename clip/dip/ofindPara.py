@@ -5,7 +5,7 @@ import ctypes as ct
 
 # region : Compare method
 
-verify = True
+verify = False
 viewKernelInfo = False
 
 def compareMatrix(mat1, mat2, head, tol=0.001, view=True):
@@ -326,6 +326,7 @@ cl.subBg = program.subBgAndCalcSigmaThres
 cl.labelInit = program.labelInit
 cl.labelMain = program.labelMain
 cl.labelSync = program.labelSync
+cl.sortInit = program.sortInit
 cl.candiInit = program.calcCandiPosiInit
 cl.getObject = program.getCandiPosiObj
 cl.candiMain = program.caclCandiPosiMain
@@ -359,6 +360,7 @@ cl.memCandiCount = context.create_buffer(ma.READ_WRITE, 2 * typeIntSize)
 cl.memXGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roiHalfSize+1) * typeFloatSize)
 cl.memYGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roiHalfSize+1) * typeFloatSize)
 cl.memStartPara = context.create_buffer(ma.READ_WRITE, 7 * maxCount * typeFloatSize)
+cl.memCandiArray = context.create_buffer(ma.READ_WRITE, maxCount * typeIntSize)
 
 # endregion : create memory buffer
 
@@ -414,10 +416,16 @@ labelSyncGlobalDim = [1,1,1]
 # labelSyncLocalDim = [1,1,1]
 labelSyncLocalDim = None
 
+cl.sortInit.set_arg(0, cl.memLabeledImage)
+cl.sortInit.set_arg(1, cl.memCandiArray)
+cl.sortInit.set_arg(2, cl.memCandiCount)
+cl.sortInit.set_arg(3, cl.memMetadata)
+
 cl.candiInit.set_arg(0, cl.memLabeledImage)
 cl.candiInit.set_arg(1, cl.memCandiRegion)
-cl.candiInit.set_arg(2, cl.memCandiCount)
-cl.candiInit.set_arg(3, cl.memMetadata)
+cl.candiInit.set_arg(2, cl.memCandiArray)
+cl.candiInit.set_arg(3, cl.memCandiCount)
+cl.candiInit.set_arg(4, cl.memMetadata)
 
 cl.getObject.set_arg(0, cl.memLabeledImage)
 cl.getObject.set_arg(1, cl.memCandiRegion)

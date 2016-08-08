@@ -331,6 +331,8 @@ class ObjectIdentifier(list):
 
 
             # calculate candidate positions
+            cl.sortInit.enqueue_nd_range(cl.candiInitGlobalDim,
+                                         commandQueue)
             candiInitEvent.append(
                 cl.candiInit.enqueue_nd_range(cl.candiInitGlobalDim,
                                               commandQueue)
@@ -381,9 +383,11 @@ class ObjectIdentifier(list):
 
             self.clFilteredData = self.clFilteredData.reshape([md.imageHeight, md.imageWidth])
 
-            compareMatrix(self.data - self.bg,
-                               self.clData.reshape([md.imageHeight, md.imageWidth]),
-                               '>>> 0. Subtracted image')
+            sBg = self.data - self.bg
+            sBg = (sBg) * (sBg > 0)
+            compareMatrix(sBg,
+                          self.clData.reshape([md.imageHeight, md.imageWidth]),
+                          '>>> 0. Subtracted image')
 
             compareMatrix(self.lowerThreshold,
                            self.clThreshold.reshape([md.imageHeight, md.imageWidth]),
@@ -456,10 +460,10 @@ class ObjectIdentifier(list):
                 candiRes[i,1] = ys[i]
                 clCandiRes[i,0] = self.candiPosi[2*i]
                 clCandiRes[i,1] = self.candiPosi[2*i+1]
-            candiRes[:,0].sort()
-            candiRes[:,1].sort()
-            clCandiRes[:,0].sort()
-            clCandiRes[:,1].sort()
+            # candiRes[:,0].sort()
+            # candiRes[:,1].sort()
+            # clCandiRes[:,0].sort()
+            # clCandiRes[:,1].sort()
             compareMatrix(candiRes,clCandiRes,
                                '>>> 4. Calculating candidate position', tol=0.01)
 
@@ -495,11 +499,11 @@ class ObjectIdentifier(list):
                     bgROI = 0
                 dataMean = dataROI - bgROI
                 A = dataROI.max() - dataROI.min()
-                if i is 0:
-                    print 'In python:'
-                    print 'dataROI_max is %f, dataROI_min is %f, dataMean_min is %f' \
-                        % (dataROI.max(), dataROI.min(), dataMean.min())
-                    print 'position is (%f,%f)' % (px, py)
+                # if i is 0:
+                #     print 'In python:'
+                #     print 'dataROI_max is %f, dataROI_min is %f, dataMean_min is %f' \
+                #         % (dataROI.max(), dataROI.min(), dataMean.min())
+                #     print 'position is (%f,%f)' % (px, py)
                 x0 = 1e3 * self.metadata.voxelsize.x * px
                 y0 = 1e3 * self.metadata.voxelsize.y * py
                 startPara[i, :] = [A, x0, y0, 250 / 2.35, dataMean.min(), .001, .001]
@@ -514,31 +518,43 @@ class ObjectIdentifier(list):
         else:
             cl.enqueue_copy(commandQueue, self.candiCount, cl.memCandiCount)
             cl.enqueue_copy(commandQueue, self.clFilteredData, cl.memFilteredImage)
+            cl.enqueue_copy(commandQueue, self.clDebounceCandi, cl.memCandiPosi)
             cl.enqueue_copy(commandQueue, self.candiPosi, cl.memTempCandiPosi).wait()
-            xs = []
-            ys = []
-            ts = []
-            for i in xrange(self.candiCount[0]):
-                xs.append(self.candiPosi[2*i])
-                ys.append(self.candiPosi[2*i+1])
-                ts.append(self.lowerThreshold)
-            xs = numpy.array(xs)
-            ys = numpy.array(ys)
+            if True:
+                xs = []
+                ys = []
+                ts = []
+                for i in xrange(self.candiCount[0]):
+                    xs.append(self.candiPosi[2*i])
+                    ys.append(self.candiPosi[2*i+1])
+                    ts.append(self.lowerThreshold)
+                xs = numpy.array(xs)
+                ys = numpy.array(ys)
 
-            self.filteredData = self.clFilteredData.reshape([md.imageHeight, md.imageWidth])
-            xs, ys = self.__Debounce(xs, ys, debounceRadius)
+                self.filteredData = self.clFilteredData.reshape([md.imageHeight, md.imageWidth])
+                xs, ys = self.__Debounce(xs, ys, debounceRadius)
+                for i in xrange(len(xs)):
+                    self.clDebounceCandi[2*i] = xs[i]
+                    self.clDebounceCandi[2*i+1] = ys[i]
+                cl.enqueue_copy(commandQueue, cl.memCandiCount, numpy.array([0, len(xs)]))
+                cl.enqueue_copy(commandQueue, cl.memCandiPosi, self.clDebounceCandi).wait()
+                cl.fitInit.enqueue_nd_range(cl.fitInitGlobalDim,
+                                            commandQueue,
+                                            cl.fitInitLocalDim)
+                commandQueue.finish()
 
-            for x, y, t in zip(xs, ys, ts):
-                self.append(OfindPoint(x, y, t))
-            # clxs = []
-            # clys = []
-            # ts = []
-            # for i in xrange(self.candiCount[1]):
-            #     clxs.append(self.clDebounceCandi[2 * i])
-            #     clys.append(self.clDebounceCandi[2 * i + 1])
-            #     ts.append(self.lowerThreshold)
-            # for x, y, t in zip(clxs, clys, ts):
-            #     self.append(OfindPoint(x,y,t))
+                for x, y, t in zip(xs, ys, ts):
+                    self.append(OfindPoint(x, y, t))
+            else:
+                clxs = []
+                clys = []
+                ts = []
+                for i in xrange(self.candiCount[1]):
+                    clxs.append(self.clDebounceCandi[2 * i])
+                    clys.append(self.clDebounceCandi[2 * i + 1])
+                    ts.append(self.lowerThreshold)
+                for x, y, t in zip(clxs, clys, ts):
+                    self.append(OfindPoint(x,y,t))
 
 
         #create pseudo lists to allow indexing along the lines of self.x[i]

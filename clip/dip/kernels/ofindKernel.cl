@@ -350,8 +350,25 @@ kernel void labelSync(global int * syncIndex)
 		syncIndex[0] += 1;
 }
 
+kernel void sortInit(global int * label,
+					 global int * candiArray,
+					 global int * count,
+					 constant struct Metadata * md)
+{
+	const int2 globalId = {get_global_id(0), get_global_id(1)};
+	int posi = globalId.x * md->imageWidth + globalId.y;
+	if (globalId.y >= md->imageWidth || globalId.x >= md->imageHeight || label[posi] == 0) return;
+
+	if (label[posi] == posi)
+	{
+		int order = atomic_inc(&count[0]);
+		candiArray[order] = posi;
+	}
+}
+
 kernel void calcCandiPosiInit(global int * label,
 							  global int4 * candiRegion,
+							  global int * candiArray,
 							  global int * count,
 							  constant struct Metadata * md)
 {
@@ -365,7 +382,10 @@ kernel void calcCandiPosiInit(global int * label,
 	if (label[posi] == posi)
 	{
 		// count[0] record the count of the candidate object
-		int order = atomic_inc(&count[0]);
+		// int order = atomic_inc(&count[0]);
+		int order = 0;
+		for (int i = 0; i < count[0]; i++)
+			if (candiArray[i] < posi) order++;
 		if (order >= MAXCOUNT) return;
 		// init candidate object region
 		candiRegion[order] = (int4){globalId.x, globalId.y, globalId.x, globalId.y};
@@ -521,6 +541,9 @@ kernel void fitInit(global Ftype * imageStack,
 			tempA[1] = fmin(tempRes[3*i+1], tempA[1]);
 			tempA[2] = fmin(tempRes[3*i+2], tempA[2]);
 		}
+		// if (groupId == 0)
+		// 		printf("In openCL :\ndata_max = %f, data_min = %f, dataMean_min = %f.\n position is (%f,%f).\n", 
+		// 			tempA[0], tempA[1], tempA[2], cPosi.x, cPosi.y);
 		// store startParameters
 		startParameters[7*groupId+0] = tempA[0] - tempA[1];
 		startParameters[7*groupId+1] = 1000 * md->voxelSizeX * cPosi.x;
