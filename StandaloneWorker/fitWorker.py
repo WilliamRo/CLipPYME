@@ -184,6 +184,7 @@ class Worker:
             res = np.empty(len(ofd), fitMod.FitResultsDType)
             if 'Analysis.ROISize' in self.md.getEntryNames():
                 rs = self.md.getEntry('Analysis.ROISize')
+
                 res = fitMod.from_points(self.md, res_len,
                                          data.shape[1],
                                          2 * rs + 1)
