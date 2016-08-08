@@ -5,8 +5,11 @@ import ctypes as ct
 
 # region : Compare method
 
+verify = True
+viewKernelInfo = False
+
 def compareMatrix(mat1, mat2, head, tol=0.001, view=True):
-    if not view:
+    if not (view and verify):
         return True
     if (mat1.shape[0] != mat2.shape[0]) or (mat1.shape[1] != mat2.shape[1]):
         print head, 'has diffrent shape!'
