@@ -1,7 +1,7 @@
 #ifndef FDJAC2_CL_INCLUDED
 #define FDJAC2_CL_INCLUDED
 
-#include "clminpack.h"
+#include "clminpack.clh"
 
 // [Verified]
 void fdjac2(local fcndata *p, local real *x, local real *fvec,

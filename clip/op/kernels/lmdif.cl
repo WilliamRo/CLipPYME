@@ -1,7 +1,7 @@
 #ifndef LMDIF_CL_INCLUDED
 #define LMDIF_CL_INCLUDED
 
-#include "clminpack.h"
+#include "clminpack.clh"
 
 void lmdif(local fcndata *p, local real *x, local real *fvec,
 		   real ftol, real xtol, real gtol, int maxfev, real epsfcn,

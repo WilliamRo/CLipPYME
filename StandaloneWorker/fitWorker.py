@@ -149,7 +149,7 @@ class Worker:
             'Analysis.ClumpRejectRadius', 0)
 
         if self.findMethod == 'CLOfind':
-            ofd = ofdMod.ObjectIdentifier(data.astype('f'), bg)
+            ofd = ofdMod.ObjectIdentifier(data.astype('f'), bg, self.md)
             ofd.FindObjects(index,
                             self.calcThreshold(sigma),
                             debounceRadius=debounce)

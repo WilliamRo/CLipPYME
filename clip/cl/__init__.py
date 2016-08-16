@@ -48,6 +48,7 @@ real = np.float32
 am = mem_access_mode
 hm = mem_host_ptr_mode
 context = None
+CU_count = -1
 program = None
 
 # Get all CL platforms
@@ -75,7 +76,7 @@ def create_context(device_type=device_types.ALL,
           to the given device type and vendor. A GPU device is
           preferred.
     """
-    global context
+    global context, CU_count
     # > if device list is specified
     if device_list is not None:
         context = Context(device_list)
@@ -107,6 +108,8 @@ def create_context(device_type=device_types.ALL,
         raise AttributeError('Can not find the specified device')
     # create context and return
     context = Context([chosen_device])
+    # set CU count
+    CU_count = chosen_device.max_compute_units
 
     return context
 

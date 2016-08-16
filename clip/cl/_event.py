@@ -78,6 +78,21 @@ class Event(cl.Event):
         span = self.profile_end - self.profile_queued
         return nano_to_str(span)
 
+    @property
+    def profile_details(self):
+        span1 = self.profile_submit - self.profile_queued
+        span2 = self.profile_start - self.profile_submit
+        span3 = self.profile_end - self.profile_start
+        span4 = self.profile_end - self.profile_queued
+
+        details = '\n'
+        details += '    Queued -> Submit: ' + nano_to_str(span1) + '\n'
+        details += '    Submit -> Started: ' + nano_to_str(span2) + '\n'
+        details += '   Started -> Ended:   ' + nano_to_str(span3) + '\n'
+        details += '              Total:   ' + nano_to_str(span4) + '\n'
+
+        return details
+
     # endregion : Properties : Profile Info
 
     # endregion : Properties

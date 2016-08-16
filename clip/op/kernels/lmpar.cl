@@ -1,7 +1,7 @@
 #ifndef LMPAR_CL_INCLUDED
 #define LMPAR_CL_INCLUDED
 
-#include "clminpack.h"
+#include "clminpack.clh"
 
 void lmpar(local real* r, int ldr, local int *ipvt,
 		   local real *diag, local real *qtb, real delta,
@@ -167,7 +167,8 @@ void lmpar(local real* r, int ldr, local int *ipvt,
 	loc_bar;
 	// ######################## Debug Switch ##########################
 	if (reala[FP] <= p1 * delta) {
-		*par = 0.0;  return;
+		if (index == N) *par = 0.0;
+		return;
 	}
 
 	/// => 668 us

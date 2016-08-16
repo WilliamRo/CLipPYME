@@ -291,9 +291,109 @@ def cl_fit(res_len, img_wid, local_len):
         cl.kernel_fit.set_arg(5, cl.buf_wa)
         cl.kernel_fit.set_arg(6, cl.buf_output)
         cl.kernel_fit.set_arg(7, np.int32(img_wid))
+        cl.kernel_fit.set_arg(8, cl.memCandiCount)
+
+    # region : verification
+
+    if True:
+        print ('=' * 80)
+        corr = True
+        num = 231
+        maxcount = 30
+        image = np.zeros(140 * 170, np.float32)
+        cl.memImage.enqueue_read(image)
+        sigma = np.zeros(140 * 170, np.float32)
+        cl.memSigmaMap.enqueue_read(sigma)
+        XGrid = np.zeros(11 * 231, np.float32)
+        cl.memXGrid.enqueue_read(XGrid)
+        YGrid = np.zeros(11 * 231, np.float32)
+        cl.memYGrid.enqueue_read(YGrid)
+        x0 = np.zeros(7 * 231, np.float32)
+        cl.memStartPara.enqueue_read(x0)
+
+        # open file
+        filename = 'latgauss_export.data'
+        f = open(filename, 'r')
+
+        # [1] verify image
+        count = 0
+        for i in range(140 * 170):
+            std = np.float32(f.readline())
+            res = image[i]
+            if res != std and count < maxcount:
+                print('!! image[%d]: std = %f, res = %f'
+                      % (i, std, res))
+                count += 1
+            if corr:
+                image[i] = std
+
+        # [2] verify sigma
+        count = 0
+        for i in range(140 * 170):
+            std = np.float32(f.readline()[0:-5])
+            res = sigma[i]
+            ratio = abs(res - std) / std
+            if ratio > 1e-6 and count < maxcount:
+                print('!! sigma[%d]: std = %f, res = %f' % (
+                    i, std, res))
+                count += 1
+            if corr:
+                sigma[i] = std
+
+        # [3] verify each ROI
+        count = np.zeros(3, np.int32)
+        for i in range(num):
+            # [3.1] X Grid
+            for j in range(11):
+                std = np.float32(f.readline()[0:-5])
+                res = XGrid[11 * i + j]
+                if std != res and count[0] < maxcount:
+                    print('!! ROI[%d] - X[%d]: std = %f, res = %f'
+                          % (i, j, std, res))
+                    count[0] += 1
+                if corr:
+                    XGrid[11 * i + j] = std
+            # [3.2] Y Grid
+            for j in range(11):
+                std = np.float32(f.readline()[0:-5])
+                res = YGrid[11 * i + j]
+                if std != res and count[1] < maxcount:
+                    print('!! ROI[%d] - Y[%d]: std = %f, res = %f'
+                          % (i, j, std, res))
+                    count[1] += 1
+                if corr:
+                    YGrid[11 * i + j] = std
+            # [3.3] image in ROI
+            for j in range(11 * 11):
+                std = np.float32(f.readline()[0:-5])
+            # [3.4] sigma in ROI
+            for j in range(11 * 11):
+                std = np.float32(f.readline()[0:-5])
+            # [3.5] x0
+            for j in range(7):
+                std = np.float32(f.readline()[0:-5])
+                res = x0[7 * i + j]
+                if std != res and count[2] < maxcount:
+                    print('!! ROI[%d] - x0[%d]: std = %f, res = %f'
+                          % (i, j, std, res))
+                    count[2] += 1
+                if corr:
+                    x0[7 * i + j] = std
+        if corr:
+            cl.memImage.enqueue_write(image)
+            cl.memSigmaMap.enqueue_write(sigma)
+            cl.memXGrid.enqueue_write(XGrid)
+            cl.memYGrid.enqueue_write(YGrid)
+            cl.memStartPara.enqueue_write(x0)
+
+        f.close()
+
+        print ('=' * 80)
+
+    # endregion : verification
 
     evt = cl.kernel_fit.enqueue_nd_range(
-        [local_len * res_len, local_len],
+        [local_len * cl.CU_count, local_len],
         local_size=[local_len, local_len])
 
     cl.flush_default_queue()
@@ -302,6 +402,11 @@ def cl_fit(res_len, img_wid, local_len):
     cl.memStartPara.enqueue_read(x_res)
     cl.buf_wa.enqueue_read(wa)
     cl.buf_output.enqueue_read(cl_output)
+
+    if True:
+        for i in range(5):
+            print "# [%d] nfev = %3d, ||fvec|| = %.10f" % \
+                  (i, wa[1 + 2 * i], cl_output[i])
 
 
 def from_points(metadata, res_len, img_wid, local_len=11):

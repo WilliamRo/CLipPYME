@@ -1,7 +1,7 @@
 #ifndef QRSOLV_CL_INCLUDED
 #define QRSOLV_CL_INCLUDED
 
-#include "clminpack.h"
+#include "clminpack.clh"
 
 void qrsolv(local real *r, int ldr, local int *ipvt,
 			local real *diag, local real *qtb, local real *x,

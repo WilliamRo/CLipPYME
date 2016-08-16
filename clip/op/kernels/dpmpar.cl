@@ -1,7 +1,7 @@
 #ifndef DPMPAR_CL_INCLUDED
 #define DPMPAR_CL_INCLUDED
 
-#include "clminpack.h"
+#include "clminpack.clh"
 
 real dpmpar(int i)
 {

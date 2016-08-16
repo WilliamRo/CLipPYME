@@ -33,7 +33,7 @@ for path in paths:
         if f[-2:] == 'cl':
             kernel_sources += (path + f,)
         elif f[-3:] == 'clh':
-            header_name = f.split('.')[0] + '.h'
+            header_name = f.split('.')[0] + '.clh'
             kernel_headers += ((path + f, header_name),)
 
 # endregion : Load kernel sources
@@ -53,6 +53,7 @@ print('-=> dip.ip initialized')
 
 if __name__ == '__main__':
     import numpy as np
+
     x = np.zeros((2, 2), np.int32)
     x[0, 0] = 800
     x[0, 1] = 801

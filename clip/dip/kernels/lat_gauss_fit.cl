@@ -1,12 +1,13 @@
 #ifndef LAT_GAUSS_FIT_CL_INCLUDED
 #define LAT_GAUSS_FIT_CL_INCLUDED
 
-#include "clminpack.h"
+#include "clminpack.clh"
 
 kernel void fit(global real *img, global real *sigma,
 				global real *X, global real *Y,
 				global real *x0, global int *wa, 
-				global real *output, int w)
+				global real *output, int w, 
+				global int *roi_num)
 	/* FIT
 
 	Parameters
@@ -39,6 +40,9 @@ kernel void fit(global real *img, global real *sigma,
 	int index = INDEX;
 	int groupID = ggri(0);
 	int gSize = GS;
+	int ROI_NUM = roi_num[1];
+	int groupCount = gng(0);
+
 	// ======================================================
 	// > declarations
 	// >> private variables
@@ -78,74 +82,76 @@ kernel void fit(global real *img, global real *sigma,
 	loc_bar;	/// S9150, double, GS64: 2 us
 
 	// ======================================================
-	// > wrap fcn data
+	for (; groupID < ROI_NUM; groupID += groupCount) {
+		// > wrap fcn data
 #ifdef M_WORKERS_DIM_2
-	loc_i = gli(0);
-	loc_j = gli(1);
-	if (loc_j == 0) p.X[loc_i] = X[loc_i + ROI_L * groupID];
-	else if (loc_j == 1) p.Y[loc_i] = Y[loc_i + ROI_L * groupID];
+		loc_i = gli(0);
+		loc_j = gli(1);
+		if (loc_j == 0) p.X[loc_i] = X[loc_i + ROI_L * groupID];
+		else if (loc_j == 1) p.Y[loc_i] = Y[loc_i + ROI_L * groupID];
 
 
-	loc_bar;
+		loc_bar;
 
-	roi_i = p.X[loc_i] / dX;
-	roi_j = p.Y[loc_j] / dY;
-	p.y[index] = img[w * roi_i + roi_j];
-	p.sigma[index] = sigma[w * roi_i + roi_j];
-#else
-	//! each work group must contain not less than ROI_L work items
-	if (index < ROI_L) {
-		p.X[index] = X[index + ROI_L * groupID];
-		p.Y[index] = Y[index + ROI_L * groupID];
-	}
-	loc_bar;
-	/// S9150, double, GS64: 4 us
-	for (i = index; i < M; i += gSize) {
-		// >>> restore loc_i and loc_j
-		loc_i = i / ROI_L;
-		loc_j = i - ROI_L * loc_i;
-		// >>> locate in img
 		roi_i = p.X[loc_i] / dX;
 		roi_j = p.Y[loc_j] / dY;
-		p.y[i] = img[w * roi_i + roi_j];
-		p.sigma[i] = sigma[w * roi_i + roi_j];
-	}
+		p.y[index] = img[w * roi_i + roi_j];
+		p.sigma[index] = sigma[w * roi_i + roi_j];
+#else
+	//! each work group must contain not less than ROI_L work items
+		if (index < ROI_L) {
+			p.X[index] = X[index + ROI_L * groupID];
+			p.Y[index] = Y[index + ROI_L * groupID];
+		}
+		loc_bar;
+		/// S9150, double, GS64: 4 us
+		for (i = index; i < M; i += gSize) {
+			// >>> restore loc_i and loc_j
+			loc_i = i / ROI_L;
+			loc_j = i - ROI_L * loc_i;
+			// >>> locate in img
+			roi_i = p.X[loc_i] / dX;
+			roi_j = p.Y[loc_j] / dY;
+			p.y[i] = img[w * roi_i + roi_j];
+			p.sigma[i] = sigma[w * roi_i + roi_j];
+		}
 #endif
-	/// S9150, double, GS64: 12 us
-	/// S9150, double, GS11x11: 10~11 us
-	// > set x
-	if (index < N) x[index] = x0[index + N * groupID];
+		/// S9150, double, GS64: 12 us
+		/// S9150, double, GS11x11: 10~11 us
+		// > set x
+		if (index < N) x[index] = x0[index + N * groupID];
 
-	loc_bar;	/// S9150, double, GS64: 13~14 us
-				/// S9150, double, GS11x11: 11~12 us
-	// ======================================================
-	// > call lmdif
-	lmdif(&p, x, fvec, ftol, xtol, gtol, maxfev, epsfcn,
-		  diag, mode, factor, &nfev, fjac, ldfjac, ipvt,
-		  qtf, wa1, wa2, wa3, wa4, inta, reala, wa0);
-	//return;//#############################################################
-	// ======================================================
+		loc_bar;	/// S9150, double, GS64: 13~14 us
+					/// S9150, double, GS11x11: 11~12 us
+		// ======================================================
+		// > call lmdif
+		lmdif(&p, x, fvec, ftol, xtol, gtol, maxfev, epsfcn,
+			  diag, mode, factor, &nfev, fjac, ldfjac, ipvt,
+			  qtf, wa1, wa2, wa3, wa4, inta, reala, wa0);
+		//return;//##############################################
+		// ======================================================
 
 #pragma region [ Verification ]
 #if 0
-	if (index == N) {
-		real clres = enorm(M, fvec);
-		printf("# ||fvec|| = %.10f\n", clres);
-		printf("# nfev = %d\n", nfev);
-	}
+		if (index == N) {
+			real clres = enorm(M, fvec);
+			printf("# ||fvec|| = %.10f\n", clres);
+			printf("# nfev = %d\n", nfev);
+		}
 #endif
 #pragma endregion
 
-	loc_bar;
+		loc_bar;
 
-	if (index < N) x0[index + N * groupID] = x[index];
-	if (index == N) {
-		wa[0 + 2 * groupID] = inta[INFO];
-		wa[1 + 2 * groupID] = nfev;
-		output[groupID] = reala[FNORM];
+		if (index < N) x0[index + N * groupID] = x[index];
+		if (index == N) {
+			wa[0 + 2 * groupID] = inta[INFO];
+			wa[1 + 2 * groupID] = nfev;
+			output[groupID] = reala[FNORM];
+		}
+
+		loc_bar;
 	}
-
-	loc_bar;
 }
 
 void fcn_mn(local fcndata *p,

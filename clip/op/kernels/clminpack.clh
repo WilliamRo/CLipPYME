@@ -1,7 +1,7 @@
 #ifndef CL_MINPACK
 #define CL_MINPACK
 
-#include "clminpack_user_def.h"
+#include "clminpack_user_def.clh"
 
 /* SPECIFICATION
 

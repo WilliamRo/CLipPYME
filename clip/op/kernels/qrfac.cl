@@ -1,7 +1,7 @@
 #ifndef QRFAC_CL_INCLUDED
 #define QRFAC_CL_INCLUDED
 
-#include "clminpack.h"
+#include "clminpack.clh"
 
 // [Verified]
 void qrfac(local real *a, int lda, int pivot, local int *ipvt,

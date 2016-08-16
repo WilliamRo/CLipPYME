@@ -218,7 +218,7 @@ for i in range(0, nrows):
         if min_delta < 0 or delta < min_delta:
             min_delta = delta
             k = j
-
+    k = i  # force
     for j in range(0, ncols):
         d = abs((stdres[i][1][j] - res[k][1][j]) / stdres[i][1][j])
         if d > tol:

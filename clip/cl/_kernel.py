@@ -95,10 +95,14 @@ class Kernel(cl.Kernel):
         if queue is None:
             queue = self.context.default_queue
         # call pyopencl.enqueue_nd_range_kernel
-        return cl.enqueue_nd_range_kernel(
+        evt = cl.enqueue_nd_range_kernel(
             queue, self, global_size, local_size,
             global_work_offset=global_offset,
             wait_for=wait_for, g_times_l=g_times_l)
+
+        from _event import Event
+        evt.__class__ = Event
+        return evt
 
     # endregion : Public Methods
 

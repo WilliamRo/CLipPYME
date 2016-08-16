@@ -1,7 +1,7 @@
 #ifndef ENORM_CL_INCLUDED
 #define ENORM_CL_INCLUDED
 
-#include "clminpack.h"
+#include "clminpack.clh"
 
 #ifdef USE_FLOAT_64
 
