@@ -294,16 +294,14 @@ typeBoolSize = ct.sizeof(ct.c_bool)
 # endregion
 
 # region : get device and default commandQueue
+
 context = cl.context
 device = context.default_device
 commandQueue = context.default_queue
 program = cl.program
 ma = cl.mem_access_mode
 
-
-
 # endregion : create metadata
-
 
 # endregion : CLOFIND
 
@@ -363,6 +361,8 @@ def ofindInit():
 
     # region : set kernel arguments and wotk item dimension
 
+    maxgroupSize = device.max_work_group_size
+
     cl.initBuffer.set_arg(0, cl.memBufferIndex)
     cl.initBuffer.set_arg(1, cl.memSyncIndex)
     cl.initBuffer.set_arg(2, cl.memCandiCount)
@@ -392,8 +392,7 @@ def ofindInit():
     cl.filterGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
     cl.filterGlobalDimVec = [((md.imageHeight + 31)&~31),
                                  ((md.imageWidth + 31)&~31)/2, 1]
-    # cl.filterGlobalDim = [md.imageHeight, md.imageWidth, 1]
-    cl.filterLocalDim = [1, 256, 1]
+    cl.filterLocalDim = GetLocalSize(maxgroupSize, cl.filterGlobalDim)
     # cl.filterLocalDim = None
 
     cl.labelInit.set_arg(0, cl.memLabeledImage)
@@ -405,7 +404,7 @@ def ofindInit():
     cl.labelMain.set_arg(2, cl.memSyncIndex)
     cl.labelMain.set_arg(3, cl.memPass)
     cl.labelGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
-    cl.labelLocalDim = [1, 256, 1]
+    cl.labelLocalDim = GetLocalSize(maxgroupSize, cl.labelGlobalDim)
     # cl.labelLocalDim = None
 
     cl.labelSync.set_arg(0, cl.memSyncIndex)
@@ -429,7 +428,7 @@ def ofindInit():
     cl.getObject.set_arg(2, cl.memCandiCount)
     cl.getObject.set_arg(3, cl.memMetadata)
     cl.candiInitGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
-    cl.candiInitKernelLocalSize = [1, 256, 1]
+    cl.candiInitKernelLocalSize = GetLocalSize(maxgroupSize, cl.candiInitGlobalDim)
     # cl.candiInitKernelLocalSize  = None
 
     cl.candiMain.set_arg(0, cl.memFilteredImage)
@@ -466,6 +465,27 @@ def ofindInit():
 
     # write metadata into device
     cl.enqueue_copy(commandQueue, cl.memMetadata, md)
+
+def GetLocalSize(maxGroupSize, workItemDim):
+    globalDim = len(workItemDim)
+    if globalDim == 1:
+        return None
+    if device.vendor == 'Advanced Micro Devices, Inc.':
+        localSize = maxGroupSize
+    else:
+        localSize = 0
+        while(1):
+            if (workItemDim[1]%maxGroupSize == 0) or maxGroupSize == 1:
+                localSize = maxGroupSize
+                break
+            else:
+                maxGroupSize = maxGroupSize >> 1
+    if globalDim == 2:
+        return [1, localSize]
+    else:
+        return [1, localSize, 1]
+
+
 
 def RunKernel(data, index):
     copyIntoDeviceEvent.append(
