@@ -295,11 +295,11 @@ def cl_fit(res_len, img_wid, local_len):
 
     # region : verification
 
-    if True:
+    if False:
         print ('=' * 80)
         corr = True
         num = 231
-        maxcount = 30
+        maxcount = 80
         image = np.zeros(140 * 170, np.float32)
         cl.memImage.enqueue_read(image)
         sigma = np.zeros(140 * 170, np.float32)
@@ -373,7 +373,8 @@ def cl_fit(res_len, img_wid, local_len):
             for j in range(7):
                 std = np.float32(f.readline()[0:-5])
                 res = x0[7 * i + j]
-                if std != res and count[2] < maxcount:
+                ratio = abs(res - std) / std
+                if ratio > 1e-6 and count[2] < maxcount:
                     print('!! ROI[%d] - x0[%d]: std = %f, res = %f'
                           % (i, j, std, res))
                     count[2] += 1
@@ -403,7 +404,7 @@ def cl_fit(res_len, img_wid, local_len):
     cl.buf_wa.enqueue_read(wa)
     cl.buf_output.enqueue_read(cl_output)
 
-    if True:
+    if False:
         for i in range(5):
             print "# [%d] nfev = %3d, ||fvec|| = %.10f" % \
                   (i, wa[1 + 2 * i], cl_output[i])
@@ -419,7 +420,7 @@ def from_points(metadata, res_len, img_wid, local_len=11):
     for i in range(res_len):
         results[i] = GaussianFitResultR(
             x_res[i * 7:(i + 1) * 7], metadata,
-            None, wa[2 * i], np.float32(0), cl_output[i])
+            None, wa[2 * i + 1], np.float32(0), cl_output[i])
 
     return results
 

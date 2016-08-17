@@ -20,7 +20,7 @@ print('>>> Modules imported')
 
 # region : Utilities
 
-def getErrorText(index, res, std, res_f, std_f):
+def getErrorText(index, res, std, res_f, std_f, nfev):
     global colnames, tol
     text = 'row[%d]\n' % index
     txtRes = '   res: '
@@ -32,7 +32,7 @@ def getErrorText(index, res, std, res_f, std_f):
         txtRes += '%s(%f)  ' % (colnames[i], res[i])
         txtStd += '%s(%f)  ' % (colnames[i], std[i])
         txtDel += '%s(%.1f%%)  ' % (colnames[i], d * 100)
-    txtRes += '-> ||r|| = %.10f' % res_f
+    txtRes += '-> ||r|| = %.10f (nfev = %d)' % (res_f, nfev)
     txtStd += '-> ||r|| = %.10f' % std_f
     return text + txtRes + '\n' + txtStd + '\n' + txtDel + '\n\n'
 
@@ -218,13 +218,13 @@ for i in range(0, nrows):
         if min_delta < 0 or delta < min_delta:
             min_delta = delta
             k = j
-    k = i  # force
+    # k = i  # force
     for j in range(0, ncols):
         d = abs((stdres[i][1][j] - res[k][1][j]) / stdres[i][1][j])
         if d > tol:
             errCount += 1
             content = getErrorText(i, res[k][1], stdres[i][1],
-                                   res[k][5], stdres[i][5])
+                                   res[k][5], stdres[i][5], res[k][3])
             veriFile.writelines(content)
             break
 
