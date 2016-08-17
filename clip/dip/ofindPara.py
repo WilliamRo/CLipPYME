@@ -269,23 +269,18 @@ CL_PROFILING_COMMAND_COMPLETE = 0x1284
 
 # endregion
 
-# region : create metadata
-
 wl = (Ftype * highFilterLength)()
 for i in xrange(highFilterLength):
     wl[i] = Ftype(weightsLow[i])
 wh = (Ftype * highFilterLength)()
 for i in xrange(highFilterLength):
     wh[i] = Ftype(weightsHighpass[i])
-md = clMetadata(1024,1024,1,0.08,0.08,0.10,True,4,12,9,25,wl,wh,\
-                0.0,1.0,1.0,1.0,5.0,1.0,1.0,5,True,0,0,100,1,5)
-
-
-# endregion : create metadata
+# md = clMetadata(1024,1024,1,0.08,0.08,0.10,True,4,12,9,25,wl,wh,\
+#                 0.0,1.0,1.0,1.0,5.0,1.0,1.0,5,True,0,0,100,1,5)
 
 # region : define other parameters
 
-pixelCount = md.imageWidth * md.imageHeight
+pixelCount = 0
 maxCount = 5000
 maxRegionPointNum = 2000
 maxpass = 10
@@ -305,160 +300,264 @@ commandQueue = context.default_queue
 program = cl.program
 ma = cl.mem_access_mode
 
-# endregion
-
-# region : create kernel
-
-cl.initBuffer = program.initBuffer
-cl.colFilter = program.colFilterImage
-cl.rowFilter = program.rowFilterImage
-cl.subBg = program.subBgAndCalcSigmaThres
-cl.labelInit = program.labelInit
-cl.labelMain = program.labelMain
-cl.labelSync = program.labelSync
-cl.sortInit = program.sortInit
-cl.candiInit = program.calcCandiPosiInit
-cl.getObject = program.getCandiPosiObj
-cl.candiMain = program.caclCandiPosiMain
-cl.debCandi = program.debounceCandiPosi
-cl.fitInit = program.fitInit
-
-# endregion : create kernel
-
-# region : create memory buffer
-
-cl.memMetadata = context.create_buffer(ma.READ_ONLY, ct.sizeof(md))
-cl.memImageStack = context.create_buffer(ma.READ_WRITE, md.maxFrameNum * pixelCount * typeFloatSize)
-cl.memBufferIndex = context.create_buffer(ma.READ_WRITE, typeIntSize)
-cl.memImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
-cl.memPaddedImage = context.create_buffer(ma.READ_WRITE, \
-            (md.imageWidth+highFilterLength-1)*(md.imageHeight+highFilterLength-1)*typeFloatSize)
-cl.memFilteredImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
-cl.memHighFilteredImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
-cl.memLowFilteredImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
-cl.memSigmaMap = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
-cl.memThresholdMap = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
-cl.memVarianceMap = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
-cl.memSyncIndex = context.create_buffer(ma.READ_WRITE, 2 * typeIntSize)
-cl.memPass = context.create_buffer(ma.READ_WRITE, maxpass * typeIntSize)
-cl.memBinaryImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeShortSize)
-cl.memLabeledImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeIntSize)
-cl.memCandiPosi = context.create_buffer(ma.READ_WRITE, 2 * maxCount * typeFloatSize)
-cl.memTempCandiPosi = context.create_buffer(ma.READ_WRITE, 2 * maxCount * typeFloatSize)
-cl.memCandiRegion = context.create_buffer(ma.READ_WRITE, 4 * maxCount* typeIntSize)
-cl.memCandiCount = context.create_buffer(ma.READ_WRITE, 2 * typeIntSize)
-cl.memXGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roiHalfSize+1) * typeFloatSize)
-cl.memYGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roiHalfSize+1) * typeFloatSize)
-cl.memStartPara = context.create_buffer(ma.READ_WRITE, 7 * maxCount * typeFloatSize)
-cl.memCandiArray = context.create_buffer(ma.READ_WRITE, maxCount * typeIntSize)
-cl.memTempRes = context.create_buffer(ma.READ_WRITE, maxCount * 3 * (2*md.roiHalfSize+1) * typeFloatSize)
-
-# endregion : create memory buffer
-
-# region : set kernel arguments and wotk item dimension
-
-cl.initBuffer.set_arg(0, cl.memBufferIndex)
-cl.initBuffer.set_arg(1, cl.memSyncIndex)
-cl.initBuffer.set_arg(2, cl.memCandiCount)
-cl.initBuffer.set_arg(3, cl.memPass)
-cl.initBufferGlobalDim = [2,1,1]
-cl.initBufferLocalDim = [1,2,1]
-
-cl.colFilter.set_arg(0, cl.memImage)
-cl.colFilter.set_arg(1, cl.memLowFilteredImage)
-cl.colFilter.set_arg(2, cl.memHighFilteredImage)
-cl.colFilter.set_arg(3, cl.memMetadata)
-
-cl.rowFilter.set_arg(0, cl.memLowFilteredImage)
-cl.rowFilter.set_arg(1, cl.memHighFilteredImage)
-cl.rowFilter.set_arg(2, cl.memFilteredImage)
-cl.rowFilter.set_arg(3, cl.memBinaryImage)
-cl.rowFilter.set_arg(4, cl.memThresholdMap)
-cl.rowFilter.set_arg(5, cl.memMetadata)
-
-cl.subBg.set_arg(0, cl.memImageStack)
-cl.subBg.set_arg(1, cl.memImage)
-cl.subBg.set_arg(2, cl.memSigmaMap)
-cl.subBg.set_arg(3, cl.memThresholdMap)
-cl.subBg.set_arg(4, cl.memVarianceMap)
-cl.subBg.set_arg(5, cl.memBufferIndex)
-cl.subBg.set_arg(6, cl.memMetadata)
-cl.filterGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
-cl.filterGlobalDimVec = [((md.imageHeight + 31)&~31),
-                             ((md.imageWidth + 31)&~31)/2, 1]
-# cl.filterGlobalDim = [md.imageHeight, md.imageWidth, 1]
-cl.filterLocalDim = [1, 256, 1]
-# cl.filterLocalDim = None
-
-cl.labelInit.set_arg(0, cl.memLabeledImage)
-cl.labelInit.set_arg(1, cl.memBinaryImage)
-cl.labelInit.set_arg(2, cl.memMetadata)
-
-cl.labelMain.set_arg(0, cl.memLabeledImage)
-cl.labelMain.set_arg(1, cl.memMetadata)
-cl.labelMain.set_arg(2, cl.memSyncIndex)
-cl.labelMain.set_arg(3, cl.memPass)
-cl.labelGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
-cl.labelLocalDim = [1, 256, 1]
-# cl.labelLocalDim = None
-
-cl.labelSync.set_arg(0, cl.memSyncIndex)
-labelSyncGlobalDim = [1,1,1]
-# labelSyncLocalDim = [1,1,1]
-labelSyncLocalDim = None
-
-cl.sortInit.set_arg(0, cl.memLabeledImage)
-cl.sortInit.set_arg(1, cl.memCandiArray)
-cl.sortInit.set_arg(2, cl.memCandiCount)
-cl.sortInit.set_arg(3, cl.memMetadata)
-
-cl.candiInit.set_arg(0, cl.memLabeledImage)
-cl.candiInit.set_arg(1, cl.memCandiRegion)
-cl.candiInit.set_arg(2, cl.memCandiArray)
-cl.candiInit.set_arg(3, cl.memCandiCount)
-cl.candiInit.set_arg(4, cl.memMetadata)
-
-cl.getObject.set_arg(0, cl.memLabeledImage)
-cl.getObject.set_arg(1, cl.memCandiRegion)
-cl.getObject.set_arg(2, cl.memCandiCount)
-cl.getObject.set_arg(3, cl.memMetadata)
-cl.candiInitGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
-cl.candiInitKernelLocalSize = [1, 256, 1]
-# cl.candiInitKernelLocalSize  = None
-
-cl.candiMain.set_arg(0, cl.memFilteredImage)
-cl.candiMain.set_arg(1, cl.memCandiRegion)
-cl.candiMain.set_arg(2, cl.memTempCandiPosi)
-cl.candiMain.set_arg(3, cl.memCandiCount)
-cl.candiMain.set_arg(4, cl.memMetadata)
-cl.candiMainGlobalDim = [(maxCount+31)&~31, 1, 1]
-cl.candiMainLocalDim = [32, 1, 1]
-cl.candiMainLocalDim = None
-
-cl.debCandi.set_arg(0, cl.memFilteredImage)
-cl.debCandi.set_arg(1, cl.memCandiPosi)
-cl.debCandi.set_arg(2, cl.memTempCandiPosi)
-cl.debCandi.set_arg(3, cl.memCandiCount)
-cl.debCandi.set_arg(4, cl.memMetadata)
-
-cl.fitInit.set_arg(0, cl.memImageStack)
-cl.fitInit.set_arg(1, cl.memImage)
-cl.fitInit.set_arg(2, cl.memBufferIndex)
-cl.fitInit.set_arg(3, cl.memCandiPosi)
-cl.fitInit.set_arg(4, cl.memCandiCount)
-cl.fitInit.set_arg(5, cl.memXGrid)
-cl.fitInit.set_arg(6, cl.memYGrid)
-cl.fitInit.set_arg(7, cl.memStartPara)
-cl.fitInit.set_arg(8, cl.memTempRes)
-cl.fitInit.set_arg(9, cl.memMetadata)
-roiSize = (2 * md.roiHalfSize + 1 + 15)&~15
-cl.fitInitGlobalDim = [roiSize, (maxCount+15)&~15]
-cl.fitInitLocalDim = [roiSize, 1]
 
 
-# endregion : set kernel arguments and wotk item dimension
+# endregion : create metadata
 
-# write metadata into device
-cl.enqueue_copy(commandQueue, cl.memMetadata, md)
 
 # endregion : CLOFIND
+
+def ofindInit():
+    global md, pixelCount
+
+    # calculate pixel count
+    pixelCount = md.imageWidth * md.imageHeight
+
+    # region : create kernel
+
+    cl.initBuffer = program.initBuffer
+    cl.colFilter = program.colFilterImage
+    cl.rowFilter = program.rowFilterImage
+    cl.subBg = program.subBgAndCalcSigmaThres
+    cl.labelInit = program.labelInit
+    cl.labelMain = program.labelMain
+    cl.labelSync = program.labelSync
+    cl.sortInit = program.sortInit
+    cl.candiInit = program.calcCandiPosiInit
+    cl.getObject = program.getCandiPosiObj
+    cl.candiMain = program.caclCandiPosiMain
+    cl.debCandi = program.debounceCandiPosi
+    cl.fitInit = program.fitInit
+
+    # endregion : create kernel
+
+    # region : create memory buffer
+
+    cl.memMetadata = context.create_buffer(ma.READ_ONLY, ct.sizeof(md))
+    cl.memImageStack = context.create_buffer(ma.READ_WRITE, md.maxFrameNum * pixelCount * typeFloatSize)
+    cl.memBufferIndex = context.create_buffer(ma.READ_WRITE, typeIntSize)
+    cl.memImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
+    cl.memPaddedImage = context.create_buffer(ma.READ_WRITE, \
+                (md.imageWidth+highFilterLength-1)*(md.imageHeight+highFilterLength-1)*typeFloatSize)
+    cl.memFilteredImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
+    cl.memHighFilteredImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
+    cl.memLowFilteredImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
+    cl.memSigmaMap = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
+    cl.memThresholdMap = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
+    cl.memVarianceMap = context.create_buffer(ma.READ_WRITE, pixelCount * typeFloatSize)
+    cl.memSyncIndex = context.create_buffer(ma.READ_WRITE, 2 * typeIntSize)
+    cl.memPass = context.create_buffer(ma.READ_WRITE, maxpass * typeIntSize)
+    cl.memBinaryImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeShortSize)
+    cl.memLabeledImage = context.create_buffer(ma.READ_WRITE, pixelCount * typeIntSize)
+    cl.memCandiPosi = context.create_buffer(ma.READ_WRITE, 2 * maxCount * typeFloatSize)
+    cl.memTempCandiPosi = context.create_buffer(ma.READ_WRITE, 2 * maxCount * typeFloatSize)
+    cl.memCandiRegion = context.create_buffer(ma.READ_WRITE, 4 * maxCount* typeIntSize)
+    cl.memCandiCount = context.create_buffer(ma.READ_WRITE, 2 * typeIntSize)
+    cl.memXGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roiHalfSize+1) * typeFloatSize)
+    cl.memYGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roiHalfSize+1) * typeFloatSize)
+    cl.memStartPara = context.create_buffer(ma.READ_WRITE, 7 * maxCount * typeFloatSize)
+    cl.memCandiArray = context.create_buffer(ma.READ_WRITE, maxCount * typeIntSize)
+    cl.memTempRes = context.create_buffer(ma.READ_WRITE, maxCount * 3 * (2*md.roiHalfSize+1) * typeFloatSize)
+
+    # endregion : create memory buffer
+
+    # region : set kernel arguments and wotk item dimension
+
+    cl.initBuffer.set_arg(0, cl.memBufferIndex)
+    cl.initBuffer.set_arg(1, cl.memSyncIndex)
+    cl.initBuffer.set_arg(2, cl.memCandiCount)
+    cl.initBuffer.set_arg(3, cl.memPass)
+    cl.initBufferGlobalDim = [2,1,1]
+    cl.initBufferLocalDim = [1,2,1]
+
+    cl.colFilter.set_arg(0, cl.memImage)
+    cl.colFilter.set_arg(1, cl.memLowFilteredImage)
+    cl.colFilter.set_arg(2, cl.memHighFilteredImage)
+    cl.colFilter.set_arg(3, cl.memMetadata)
+
+    cl.rowFilter.set_arg(0, cl.memLowFilteredImage)
+    cl.rowFilter.set_arg(1, cl.memHighFilteredImage)
+    cl.rowFilter.set_arg(2, cl.memFilteredImage)
+    cl.rowFilter.set_arg(3, cl.memBinaryImage)
+    cl.rowFilter.set_arg(4, cl.memThresholdMap)
+    cl.rowFilter.set_arg(5, cl.memMetadata)
+
+    cl.subBg.set_arg(0, cl.memImageStack)
+    cl.subBg.set_arg(1, cl.memImage)
+    cl.subBg.set_arg(2, cl.memSigmaMap)
+    cl.subBg.set_arg(3, cl.memThresholdMap)
+    cl.subBg.set_arg(4, cl.memVarianceMap)
+    cl.subBg.set_arg(5, cl.memBufferIndex)
+    cl.subBg.set_arg(6, cl.memMetadata)
+    cl.filterGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
+    cl.filterGlobalDimVec = [((md.imageHeight + 31)&~31),
+                                 ((md.imageWidth + 31)&~31)/2, 1]
+    # cl.filterGlobalDim = [md.imageHeight, md.imageWidth, 1]
+    cl.filterLocalDim = [1, 256, 1]
+    # cl.filterLocalDim = None
+
+    cl.labelInit.set_arg(0, cl.memLabeledImage)
+    cl.labelInit.set_arg(1, cl.memBinaryImage)
+    cl.labelInit.set_arg(2, cl.memMetadata)
+
+    cl.labelMain.set_arg(0, cl.memLabeledImage)
+    cl.labelMain.set_arg(1, cl.memMetadata)
+    cl.labelMain.set_arg(2, cl.memSyncIndex)
+    cl.labelMain.set_arg(3, cl.memPass)
+    cl.labelGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
+    cl.labelLocalDim = [1, 256, 1]
+    # cl.labelLocalDim = None
+
+    cl.labelSync.set_arg(0, cl.memSyncIndex)
+    cl.labelSyncGlobalDim = [1,1,1]
+    # labelSyncLocalDim = [1,1,1]
+    cl.labelSyncLocalDim = None
+
+    cl.sortInit.set_arg(0, cl.memLabeledImage)
+    cl.sortInit.set_arg(1, cl.memCandiArray)
+    cl.sortInit.set_arg(2, cl.memCandiCount)
+    cl.sortInit.set_arg(3, cl.memMetadata)
+
+    cl.candiInit.set_arg(0, cl.memLabeledImage)
+    cl.candiInit.set_arg(1, cl.memCandiRegion)
+    cl.candiInit.set_arg(2, cl.memCandiArray)
+    cl.candiInit.set_arg(3, cl.memCandiCount)
+    cl.candiInit.set_arg(4, cl.memMetadata)
+
+    cl.getObject.set_arg(0, cl.memLabeledImage)
+    cl.getObject.set_arg(1, cl.memCandiRegion)
+    cl.getObject.set_arg(2, cl.memCandiCount)
+    cl.getObject.set_arg(3, cl.memMetadata)
+    cl.candiInitGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
+    cl.candiInitKernelLocalSize = [1, 256, 1]
+    # cl.candiInitKernelLocalSize  = None
+
+    cl.candiMain.set_arg(0, cl.memFilteredImage)
+    cl.candiMain.set_arg(1, cl.memCandiRegion)
+    cl.candiMain.set_arg(2, cl.memTempCandiPosi)
+    cl.candiMain.set_arg(3, cl.memCandiCount)
+    cl.candiMain.set_arg(4, cl.memMetadata)
+    cl.candiMainGlobalDim = [(maxCount+31)&~31, 1, 1]
+    cl.candiMainLocalDim = [32, 1, 1]
+    cl.candiMainLocalDim = None
+
+    cl.debCandi.set_arg(0, cl.memFilteredImage)
+    cl.debCandi.set_arg(1, cl.memCandiPosi)
+    cl.debCandi.set_arg(2, cl.memTempCandiPosi)
+    cl.debCandi.set_arg(3, cl.memCandiCount)
+    cl.debCandi.set_arg(4, cl.memMetadata)
+
+    cl.fitInit.set_arg(0, cl.memImageStack)
+    cl.fitInit.set_arg(1, cl.memImage)
+    cl.fitInit.set_arg(2, cl.memBufferIndex)
+    cl.fitInit.set_arg(3, cl.memCandiPosi)
+    cl.fitInit.set_arg(4, cl.memCandiCount)
+    cl.fitInit.set_arg(5, cl.memXGrid)
+    cl.fitInit.set_arg(6, cl.memYGrid)
+    cl.fitInit.set_arg(7, cl.memStartPara)
+    cl.fitInit.set_arg(8, cl.memTempRes)
+    cl.fitInit.set_arg(9, cl.memMetadata)
+    roiSize = (2 * md.roiHalfSize + 1 + 15)&~15
+    cl.fitInitGlobalDim = [roiSize, (maxCount+15)&~15]
+    cl.fitInitLocalDim = [roiSize, 1]
+
+
+    # endregion : set kernel arguments and wotk item dimension
+
+    # write metadata into device
+    cl.enqueue_copy(commandQueue, cl.memMetadata, md)
+
+def RunKernel(data, index):
+    copyIntoDeviceEvent.append(
+        cl.enqueue_copy(commandQueue,
+                        cl.memImageStack,
+                        data,
+                        device_offset=index * pixelCount * typeFloatSize,
+                        is_blocking=False)
+    )
+    cl.enqueue_copy(commandQueue,
+                    cl.memBufferIndex,
+                    numpy.array(index, 'int32'),
+                    is_blocking=False)
+
+    initBufferEvent.append(
+        cl.initBuffer.enqueue_nd_range(cl.initBufferGlobalDim,
+                                       commandQueue)
+    )
+
+    # subtract bg and get sigma map threshold map
+    subBgEvent.append(
+        cl.subBg.enqueue_nd_range(cl.filterGlobalDim,
+                                  commandQueue,
+                                  cl.filterLocalDim)
+    )
+
+    # do filtering
+    colFilterEvent.append(
+        cl.colFilter.enqueue_nd_range(cl.filterGlobalDim,
+                                      commandQueue,
+                                      cl.filterLocalDim)
+    )
+    rowFilterEvent.append(
+        cl.rowFilter.enqueue_nd_range(cl.filterGlobalDim,
+                                      commandQueue,
+                                      cl.filterLocalDim)
+    )
+
+    # label image
+    labelInitEvent.append(
+        cl.labelInit.enqueue_nd_range(cl.labelGlobalDim,
+                                      commandQueue,
+                                      cl.labelLocalDim)
+    )
+    for j in xrange(maxpass):
+        labelMainEvent.append(
+            cl.labelMain.enqueue_nd_range(cl.labelGlobalDim,
+                                          commandQueue,
+                                          cl.labelLocalDim)
+        )
+        cl.labelSync.enqueue_nd_range(cl.labelSyncGlobalDim,
+                                      commandQueue)
+
+    # calculate candidate positions
+    cl.sortInit.enqueue_nd_range(cl.candiInitGlobalDim,
+                                 commandQueue)
+    candiInitEvent.append(
+        cl.candiInit.enqueue_nd_range(cl.candiInitGlobalDim,
+                                      commandQueue,
+                                      cl.candiInitKernelLocalSize)
+    )
+    candiObjEvent.append(
+        cl.getObject.enqueue_nd_range(cl.candiInitGlobalDim,
+                                      commandQueue,
+                                      cl.candiInitKernelLocalSize)
+    )
+    candiMainEvent.append(
+        cl.candiMain.enqueue_nd_range(cl.candiMainGlobalDim,
+                                      commandQueue)
+    )
+
+    # debounce candidate position
+    debounceCandiEvent.append(
+        cl.debCandi.enqueue_nd_range(cl.candiMainGlobalDim,
+                                     commandQueue,
+                                     cl.candiMainLocalDim)
+    )
+
+    # fit initialization
+    fitInitEvent.append(
+        cl.fitInit.enqueue_nd_range(cl.fitInitGlobalDim,
+                                    commandQueue,
+                                    cl.fitInitLocalDim)
+    )
+
+    # read data from device
+    candiCount = numpy.zeros(2, 'int32')
+    cl.enqueue_copy(commandQueue, candiCount, cl.memCandiCount,
+                    is_blocking=False)
+
+    commandQueue.flush()
+    commandQueue.finish()
+
+    # return candidate position count after debounce
+    return candiCount[1]
