@@ -122,12 +122,12 @@ kernel void subBgAndCalcSigmaThres(global Ftype * imageStack,
 	
 	// get background index
 	int startInd = max(0, bInd + md->bgStartInd),
-		endInd = min(md->maxFrameNum - 1, bInd + md->bgEndInd);
+		endInd = bInd + md->bgEndInd;
 	Ftype bg = 0;
 	if (endInd - startInd >= md->minBgIndicesLen)
 	{
 		for (int i = startInd; i < endInd; i++)
-			bg = bg + imageStack[i*iw*ih+posi];
+			bg = bg + imageStack[(i % md->maxFrameNum)*iw*ih+posi];
 		bg = bg / (endInd - startInd);
 	}
 	else

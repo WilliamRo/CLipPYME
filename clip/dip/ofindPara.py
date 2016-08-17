@@ -5,7 +5,7 @@ import ctypes as ct
 
 # region : Compare method
 
-verify = False
+verify = True
 viewKernelInfo = False
 
 def compareMatrix(mat1, mat2, head, tol=0.001, view=True):
@@ -485,14 +485,12 @@ def GetLocalSize(maxGroupSize, workItemDim):
     else:
         return [1, localSize, 1]
 
-
-
 def RunKernel(data, index):
     copyIntoDeviceEvent.append(
         cl.enqueue_copy(commandQueue,
                         cl.memImageStack,
                         data,
-                        device_offset=index * pixelCount * typeFloatSize,
+                        device_offset=(index % md.maxFrameNum) * pixelCount * typeFloatSize,
                         is_blocking=False)
     )
     cl.enqueue_copy(commandQueue,

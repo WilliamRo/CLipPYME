@@ -1,13 +1,13 @@
 ########################################################################
 #
-#   Created: August 14, 2016
+#   Created: June 1, 2016
 #   Author: William Ro
 #
 ########################################################################
 
-"""clFitWorker
+"""fitWorker
 
-A opencl version of remFitBuf ...
+A standalone version of remFitBuf ...
 
 """
 
@@ -92,7 +92,6 @@ class Worker:
             'Analysis.MinimumBackgroudLength', 1)
 
         self.fitMod = self._getFitMod()
-        self.ofdMod = self._getOfind()
 
     # endregion : Constructor
 
@@ -109,11 +108,25 @@ class Worker:
         # region : Preparation
 
         data = self.dBuffer[index]
+        # fitMod = self._getFitMod()
         fitMod = self.fitMod
 
-        # data = data.reshape(data.shape + (1,)) * 1.0
-
         # endregion : Preparation
+
+        # region : Calculate background and noise
+        # ! without cameraMaps.correctImage(...)
+
+        data = data.reshape(data.shape + (1,)) * 1.0
+
+        if len(bgindices) >= self.minBgIndicesLen:
+            bg = self.bBuffer.getBackground(bgindices).reshape(
+                data.shape)
+        else:
+            bg = self.md['Camera.ADOffset']
+
+        sigma = self.calcSigma(data - self.md['Camera.ADOffset'])
+
+        # endregion : Calculate background and noise
 
         # region : ! Special cases - defer object finding to fit module
         # endregion
@@ -121,13 +134,33 @@ class Worker:
         # region : Find candidate molecule positions
         # > splitter mapping function is omitted
 
+        bgd = data.astype('f') - bg  # shape = (w, h, 1)
+
         # routines for splitter
         pass
 
-        # perform objects finding
+        # get ofind
+        # import PYME.Analysis.ofind as ofind
+        ofdMod = self._getOfind()
 
-        ofd = self.ofdMod.ObjectIdentifier(data.astype('f'))
-        ofd.FindObjects(index)
+        # perform objects finding
+        debounce = self.md.getOrDefault('Analysis.DebounceRadius', 5)
+        discardClumpRadius = self.md.getOrDefault(
+            'Analysis.ClumpRejectRadius', 0)
+
+        if self.findMethod == 'CLOfind':
+            ofd = ofdMod.ObjectIdentifier(data.astype('f'),
+                                          bg,
+                                          self.md,
+                                          self.SNThreshold,
+                                          self.threshold)
+            ofd.FindObjects(index,
+                            debounceRadius=debounce)
+        else:
+            ofd = ofdMod.ObjectIdentifier(bgd * (bgd > 0))
+            ofd.FindObjects(self.calcThreshold(sigma), 0,
+                            debounceRadius=debounce,
+                            discardClumpRadius=discardClumpRadius)
 
         # endregion : Find candidate molecule positions
 
@@ -136,19 +169,44 @@ class Worker:
 
         # region : Perform fit for each point that we detected
         # > drift estimation is omitted
+
+        # create a fit 'factory'
+        if 'cl' in dir(fitMod):
+            # CLip class has no fit_fcn in constructor
+            fitFac = fitMod.FitFactory(data, self.md, bg, sigma)
+        else:
+            fitFac = fitMod.FitFactory(data, self.md,
+                                       background=bg,
+                                       noiseSigma=sigma)
+
         # without this line fitFac.FromPoint will fail
         self.md.tIndex = index
         res_len = ofd.ofdLen  # TODO
 
         if 'FitResultsDType' in dir(fitMod):
+            res = np.empty(res_len, fitMod.FitResultsDType)
             if 'Analysis.ROISize' in self.md.getEntryNames():
                 rs = self.md.getEntry('Analysis.ROISize')
+
                 res = fitMod.from_points(self.md, res_len,
                                          data.shape[1],
                                          2 * rs + 1)
+
+                # for i in range(len(ofd)):
+                #     p = ofd[i]
+                #     res[i] = fitFac.FromPoint(p.x, p.y,
+                # roiHalfSize=rs)
+
             else:
+                # for i in range(len(ofd)):
+                #     p = ofd[i]
+                #     res[i] = fitFac.FromPoint(p.x, p.y)
+
                 res = fitMod.from_points(self.md, res_len,
                                          data.shape[1])
+
+        else:
+            res = [fitFac.FromPoint(p.x, p.y) for p in ofd]
 
         # endregion : Perform fit for each point that we detected
 
@@ -160,14 +218,48 @@ class Worker:
 
     def _getFitMod(self):
         # import CL based modules
-        return __import__('clip.dip.LatGaussFit',
+        if self.fitModule == 'LatGaussFitFR':
+            return __import__('clip.dip.LatGaussFit',
                               fromlist=['clip', 'dip'])
-
+        # import PYME modules
+        else:
+            return __import__(
+                'PYME.Analysis.FitFactories.' + self.fitModule,
+                fromlist=['PYME', 'Analysis', 'FitFactories'])
 
     def _getOfind(self):
         # import CL based modules
-        return __import__('clip.dip.clOfind',
-                            fromlist=['clip', 'dip'])
+        if self.findMethod == 'CLOfind':
+            return __import__('clip.dip.clOfind',
+                              fromlist=['clip', 'dip'])
+        # import PYME modules
+        else:
+            return __import__('PYME.Analysis.ofind',
+                              fromlist=['PYME', 'Analysis'])
+
+    def calcSigma(self, data):
+        var = cameraMaps.getVarianceMap(self.md)
+
+        n = self.md.Camera.NoiseFactor
+        e = self.md.Camera.ElectronsPerCount
+        t = self.md.Camera.TrueEMGain
+        # print data[5,7]
+        # print np.sqrt(var + (n ** 2) * (e * t * np.maximum(data[5,
+        # 7], 1) + t * t)) / e
+
+        return np.sqrt(
+            var + (n ** 2) * (e * t * np.maximum(data, 1) + t * t)) / e
+
+    def calcThreshold(self, sigma):
+        if self.SNThreshold:
+            # to account for the fact that the blurring etc...
+            #   in ofind doesn't preserve intensities - at the
+            #   moment completely arbitrary so a threshold setting
+            #   of 1 results in reasonable detection.
+            fudgeFactor = 1
+            return (sigma * fudgeFactor * self.threshold).squeeze()
+        else:
+            return self.threshold
 
     # endregion : Private Methods
 
