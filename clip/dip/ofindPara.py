@@ -60,12 +60,6 @@ weightsLowpass = calc_gauss_weights(filtRadLowpass)
 weightsHighpass = calc_gauss_weights(filtRadHighpass)
 weightsLow = numpy.zeros(highFilterLength,'f')
 weightsLow[8:17] = weightsLowpass
-# weights = numpy.zeros([highFilterLength , highFilterLength], dtype='f')
-# for i in xrange(highFilterLength):
-#     for j in xrange(highFilterLength):
-#         weights[i,j] = weightsLow[i]*weightsLow[j] - \
-#                        weightsHighpass[i]*weightsHighpass[j]
-# weights = weights.reshape([highFilterLength*highFilterLength])
 weights = weightsLow
 
 Ftype = ct.c_float
@@ -81,9 +75,8 @@ class clMetadata(ct.Structure):
                 ("filterRadiusHighpass", ct.c_int32),
                 ("lowFilterLength", ct.c_int32),
                 ("highFilterLength", ct.c_int32),
-                ("weightsLow", Ftype*lowFilterLength),
+                ("weightsLow", Ftype*highFilterLength),
                 ("weightsHigh", Ftype*highFilterLength),
-                ("weights", Ftype*(highFilterLength)),
                 ("cameraOffset", Ftype),
                 ("cameraNoiseFactor", Ftype),
                 ("cameraElectronsPerCount", Ftype),
@@ -278,17 +271,14 @@ CL_PROFILING_COMMAND_COMPLETE = 0x1284
 
 # region : create metadata
 
-wl = (Ftype * lowFilterLength)()
-for i in xrange(lowFilterLength):
-    wl[i] = Ftype(weightsLowpass[i])
+wl = (Ftype * highFilterLength)()
+for i in xrange(highFilterLength):
+    wl[i] = Ftype(weightsLow[i])
 wh = (Ftype * highFilterLength)()
 for i in xrange(highFilterLength):
     wh[i] = Ftype(weightsHighpass[i])
-w = (Ftype * (highFilterLength))()
-for i in xrange(highFilterLength):
-    w[i] = Ftype(weights[i])
-md = clMetadata(170,140,1,0.08,0.08,0.10,True,4,12,9,25,wl,wh,w,\
-                0.0,1.0,1.0,1.0,5.0,1.0,1.0,5,True,-20,0,100,1,5)
+md = clMetadata(1024,1024,1,0.08,0.08,0.10,True,4,12,9,25,wl,wh,\
+                0.0,1.0,1.0,1.0,5.0,1.0,1.0,5,True,0,0,100,1,5)
 
 
 # endregion : create metadata
@@ -361,6 +351,7 @@ cl.memXGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roiHalfSize+
 cl.memYGrid = context.create_buffer(ma.READ_WRITE, maxCount * (2*md.roiHalfSize+1) * typeFloatSize)
 cl.memStartPara = context.create_buffer(ma.READ_WRITE, 7 * maxCount * typeFloatSize)
 cl.memCandiArray = context.create_buffer(ma.READ_WRITE, maxCount * typeIntSize)
+cl.memTempRes = context.create_buffer(ma.READ_WRITE, maxCount * 3 * (2*md.roiHalfSize+1) * typeFloatSize)
 
 # endregion : create memory buffer
 
@@ -396,8 +387,8 @@ cl.filterGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
 cl.filterGlobalDimVec = [((md.imageHeight + 31)&~31),
                              ((md.imageWidth + 31)&~31)/2, 1]
 # cl.filterGlobalDim = [md.imageHeight, md.imageWidth, 1]
-# cl.filterLocalDim = [1, 256, 1]
-cl.filterLocalDim = None
+cl.filterLocalDim = [1, 256, 1]
+# cl.filterLocalDim = None
 
 cl.labelInit.set_arg(0, cl.memLabeledImage)
 cl.labelInit.set_arg(1, cl.memBinaryImage)
@@ -408,8 +399,8 @@ cl.labelMain.set_arg(1, cl.memMetadata)
 cl.labelMain.set_arg(2, cl.memSyncIndex)
 cl.labelMain.set_arg(3, cl.memPass)
 cl.labelGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
-# cl.labelLocalDim = [1, 256, 1]
-cl.labelLocalDim = None
+cl.labelLocalDim = [1, 256, 1]
+# cl.labelLocalDim = None
 
 cl.labelSync.set_arg(0, cl.memSyncIndex)
 labelSyncGlobalDim = [1,1,1]
@@ -432,8 +423,8 @@ cl.getObject.set_arg(1, cl.memCandiRegion)
 cl.getObject.set_arg(2, cl.memCandiCount)
 cl.getObject.set_arg(3, cl.memMetadata)
 cl.candiInitGlobalDim = [(md.imageHeight + 31)&~31, (md.imageWidth + 31)&~31, 1]
-# cl.candiInitKernelLocalSize = [1, 1, 1]
-cl.candiInitKernelLocalSize  = None
+cl.candiInitKernelLocalSize = [1, 256, 1]
+# cl.candiInitKernelLocalSize  = None
 
 cl.candiMain.set_arg(0, cl.memFilteredImage)
 cl.candiMain.set_arg(1, cl.memCandiRegion)
@@ -441,7 +432,7 @@ cl.candiMain.set_arg(2, cl.memTempCandiPosi)
 cl.candiMain.set_arg(3, cl.memCandiCount)
 cl.candiMain.set_arg(4, cl.memMetadata)
 cl.candiMainGlobalDim = [(maxCount+31)&~31, 1, 1]
-# cl.candiMainLocalDim = [1, 256, 1]
+cl.candiMainLocalDim = [32, 1, 1]
 cl.candiMainLocalDim = None
 
 cl.debCandi.set_arg(0, cl.memFilteredImage)
@@ -458,7 +449,8 @@ cl.fitInit.set_arg(4, cl.memCandiCount)
 cl.fitInit.set_arg(5, cl.memXGrid)
 cl.fitInit.set_arg(6, cl.memYGrid)
 cl.fitInit.set_arg(7, cl.memStartPara)
-cl.fitInit.set_arg(8, cl.memMetadata)
+cl.fitInit.set_arg(8, cl.memTempRes)
+cl.fitInit.set_arg(9, cl.memMetadata)
 roiSize = (2 * md.roiHalfSize + 1 + 15)&~15
 cl.fitInitGlobalDim = [roiSize, (maxCount+15)&~15]
 cl.fitInitLocalDim = [roiSize, 1]

@@ -6,20 +6,17 @@ From HPEC Lab, ZheJiang University, 2016/07/12.
 
 #define Ftype float
 #define Ftype2 float2
+#define Ftype3 float3
 #define Ftype4 float4
 #define Ftype16 float16
 
 #define LOWFILTERLENGTH 9
 #define HIGHFILTERLENGTH 25
 
-#define MIN(x, y) ((x < y)? (x) : (y))
-#define MAX(x, y) ((x > y)? (x) : (y))
-
 #define BGCOLOUR 0
 #define MAXLABELPASS 10
 
 #define MAXCOUNT 5000
-#define MAXREGIONPOINT 2000
 
 #define IMAGEBOUNDAY(x, y) x = ((x) < 0)? -(x) - 1 : (x); \
 						   x = ((x) >= (y))? 2 * (y) - (x) - 1 : (x);
@@ -51,9 +48,8 @@ struct Metadata
 	int filterRadiusHighpass;
 	int lowFilterLength;
 	int highFilterLength;
-	Ftype weightsLow[LOWFILTERLENGTH];
+	Ftype weightsLow[HIGHFILTERLENGTH];
 	Ftype weightsHigh[HIGHFILTERLENGTH];
-	Ftype weights[HIGHFILTERLENGTH];
 
 	// Camera information
 	Ftype cameraOffset;
@@ -166,7 +162,7 @@ kernel void colFilterImage(global Ftype * image,
 		//temp = select(temp, -temp-1, isless(temp, 0.0));
 		//temp = select(2*ih-temp-1, temp, isless(temp, (Ftype)ih)) * iw;
 		im = (Ftype2){image[temp+globalIdy.S0], image[temp+globalIdy.S1]};
-		lowFilterResult += im * (Ftype2)(md->weights[i]);
+		lowFilterResult += im * (Ftype2)(md->weightsLow[i]);
 		highFilterResult += im * (Ftype2)(md->weightsHigh[i]); 
 	}
 	lowFilteredImage[globalId.x*iw/2+globalId.y] = lowFilterResult;
@@ -185,19 +181,17 @@ kernel void colFilterImage(global Ftype * image,
 		filterRadius = md->filterRadiusHighpass;
 	if (globalId.x >= ih || globalId.y >= iw) return;
 
-	// define parameters
-	int temp;
-	Ftype lowFilterResult = 0.0, highFilterResult = 0.0, tempIm;
-
 	// convolution
-	for (int i = -filterRadius; i <= filterRadius; i++)
+	int temp;
+	Ftype lowFilterResult = 0.0, highFilterResult = 0.0;
+	# pragma unroll HIGHFILTERLENGTH
+	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
-		temp = globalId.x + i;
+		temp = globalId.x + (i - filterRadius);
 		temp = max(temp, -temp-1);
 		temp = min(2*ih-temp-1, temp) * iw + globalId.y;
-		tempIm = image[temp];
-		lowFilterResult += tempIm * md->weights[i+filterRadius];
-		highFilterResult += tempIm * md->weightsHigh[i+filterRadius]; 
+		lowFilterResult += image[temp] * md->weightsLow[i];
+		highFilterResult += image[temp] * md->weightsHigh[i]; 
 	}
 	lowFilteredImage[posi] = lowFilterResult;
 	highFilteredImage[posi] = highFilterResult;
@@ -227,7 +221,7 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 		temp = globalIdy + (i - md->filterRadiusHighpass);
 		temp = select(temp, -temp-1, isless(convert_float2(temp), (Ftype2)0.0f));
 		temp = select(2*iw-temp-1, temp, isless(convert_float2(temp), (Ftype2)iw)) + globalId.x*iw;
-		filterResult += (Ftype2){lowFilteredImage[temp.S0], lowFilteredImage[temp.S1]} * (Ftype2)md->weights[i];
+		filterResult += (Ftype2){lowFilteredImage[temp.S0], lowFilteredImage[temp.S1]} * (Ftype2)md->weightsLow[i];
 		filterResult -= (Ftype2){highFilteredImage[temp.S0], highFilteredImage[temp.S1]} * (Ftype2)md->weightsHigh[i];
 	}
 	// mask image edge
@@ -253,20 +247,21 @@ kernel void rowFilterImage(global Ftype * lowFilteredImage,
 	// begin
 	const int2 globalId = {get_global_id(0), get_global_id(1)};
 	// get real position in array
-	int iw = md->imageWidth, ih = md->imageHeight, filterRadius = md->filterRadiusHighpass, \
+	int iw = md->imageWidth, 
+		ih = md->imageHeight, 
+		filterRadius = md->filterRadiusHighpass, 
 		posi = globalId.x * iw + globalId.y;
 	if (globalId.y >= iw || globalId.x >= ih) return;
 		
-	// define some parameters and get parameters from metadata
+	// high : row
 	int temp;
 	Ftype filterResult = 0;
-
-	// high : row
+	# pragma unroll HIGHFILTERLENGTH
 	for (int i = 0; i < HIGHFILTERLENGTH; i++)
 	{
 		temp = globalId.y + (i - filterRadius);
 		IMAGEBOUNDAY(temp, iw)
-		filterResult += lowFilteredImage[globalId.x * iw + temp] * md->weights[i];
+		filterResult += lowFilteredImage[globalId.x * iw + temp] * md->weightsLow[i];
 		filterResult -= highFilteredImage[globalId.x * iw + temp] * md->weightsHigh[i];
 	}
 
@@ -487,7 +482,6 @@ kernel void debounceCandiPosi(global Ftype * filteredImage,
 
 }
 
-#define ROISIZE 11
 
 kernel void fitInit(global Ftype * imageStack,
 					global Ftype * image,
@@ -497,9 +491,11 @@ kernel void fitInit(global Ftype * imageStack,
 					global Ftype * xGrid,
 					global Ftype * yGrid,
 					global Ftype * startParameters,
+					global Ftype3 * tempRes,
 					constant struct Metadata * md)
 {
-	const int groupId = get_group_id(1), localId = get_local_id(0), roiSize = 2 * md->roiHalfSize + 1;
+	const int groupId = get_group_id(1), localId = get_local_id(0), roiSize = 2 * md->roiHalfSize + 1,
+	          offset = groupId * roiSize + localId;
 	if(groupId >= count[1] || localId >= roiSize) return;
 
 	// calculate X,Y grid
@@ -510,50 +506,44 @@ kernel void fitInit(global Ftype * imageStack,
 	yGrid[groupId*roiSize+localId] = 1000 * md->voxelSizeY * ySlice;
 
 	// calculate startParameters
-	local Ftype tempRes[ROISIZE*3];
-	float3 temp = (float3)0;
 	int imagePosi = xSlice * md->imageWidth + clamp((int)posi.y - md->roiHalfSize, 0, md->imageWidth),
 		stackPosi =  bufferIndex[0] * md->imageWidth * md->imageHeight + imagePosi;
-	// (x) workitem calculate xth row's data_max, data_min, dataMean_min 
+	Ftype3 temp;
+	// (x) workitem calculate xth row's data_max, data_min, dataMean_min
 	temp.x = imageStack[stackPosi];
 	temp.y = imageStack[stackPosi];
 	temp.z = image[imagePosi];
-	for (int i = 1; i < ROISIZE; i++)
+	for (int i = 1; i < roiSize; i++)
 	{
 		temp.x = fmax(imageStack[stackPosi+i], temp.x);
 		temp.y = fmin(imageStack[stackPosi+i], temp.y);
 		temp.z = fmin(image[imagePosi+i], temp.z);
 	}
-	tempRes[3*localId] = temp.x;
-	tempRes[3*localId+1] = temp.y;
-	tempRes[3*localId+2] = temp.z;
-	barrier(CLK_LOCAL_MEM_FENCE);
-	// gather in (0,0)workitem
-	local Ftype tempA[3];
+	tempRes[offset] = temp;
+	barrier(CLK_GLOBAL_MEM_FENCE);
+
+	// gather in (0) workitem
 	if (localId == 0)
 	{
-		tempA[0] = tempRes[0]; 
-		tempA[1] = tempRes[1];
-		tempA[2] = tempRes[2];
-		for (int i = 1; i < ROISIZE; i++)
+		Ftype3 tempA = tempRes[offset], tempB = (Ftype3)0;
+		for (int i = 1; i < roiSize; i++)
 		{
-			tempA[0] = fmax(tempRes[3*i], tempA[0]);
-			tempA[1] = fmin(tempRes[3*i+1], tempA[1]);
-			tempA[2] = fmin(tempRes[3*i+2], tempA[2]);
+			tempB = tempRes[offset+i];
+			tempA.x = fmax(tempB.x, tempA.x);
+			tempA.y = fmin(tempB.y, tempA.y);
+			tempA.z = fmin(tempB.z, tempA.z);
 		}
-		// if (groupId == 0)
-		// 		printf("In openCL :\ndata_max = %f, data_min = %f, dataMean_min = %f.\n position is (%f,%f).\n", 
-		// 			tempA[0], tempA[1], tempA[2], cPosi.x, cPosi.y);
+
 		// store startParameters
-		startParameters[7*groupId+0] = tempA[0] - tempA[1];
+		startParameters[7*groupId+0] = tempA.x - tempA.y;
 		startParameters[7*groupId+1] = 1000 * md->voxelSizeX * cPosi.x;
 		startParameters[7*groupId+2] = 1000 * md->voxelSizeY * cPosi.y;
 		startParameters[7*groupId+3] = 250 / 2.35;
-		startParameters[7*groupId+4] = tempA[2];
+		startParameters[7*groupId+4] = tempA.z;
 		startParameters[7*groupId+5] = 0.001;
 		startParameters[7*groupId+6] = 0.001;
 	}
-	
+
 }
 
 
