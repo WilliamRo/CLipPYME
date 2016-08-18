@@ -38,11 +38,19 @@ kernel void fit(global real *img, global real *sigma,
 {
 	// > get NDRange info
 	int index = INDEX;
-	int groupID = ggri(0);
+	int groupID = ggri(0) + ggri(1) * gng(0);
 	int gSize = GS;
 	int ROI_NUM = roi_num[1];
-	int groupCount = gng(0);
+	int groupCount = gng(0) * gng(1);
 
+#pragma region Test
+#if 0
+	if (index == 0)
+		printf("# groupID = %d\n", groupID);
+	return;
+#endif
+#pragma endregion
+	
 	// ======================================================
 	// > declarations
 	// >> private variables
