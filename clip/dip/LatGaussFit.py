@@ -292,6 +292,7 @@ def cl_fit(res_len, img_wid, local_len):
         cl.kernel_fit.set_arg(6, cl.buf_output)
         cl.kernel_fit.set_arg(7, np.int32(img_wid))
         cl.kernel_fit.set_arg(8, cl.memCandiCount)
+        cl.kernel_fit.set_arg(9, np.int32(cl.CU_count))
 
     # region : verification
 
@@ -394,7 +395,7 @@ def cl_fit(res_len, img_wid, local_len):
     # endregion : verification
 
     evt = cl.kernel_fit.enqueue_nd_range(
-        [local_len * cl.CU_count, local_len],
+        [local_len * 100, local_len],
         local_size=[local_len, local_len])
 
     cl.flush_default_queue()

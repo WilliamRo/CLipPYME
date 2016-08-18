@@ -5,9 +5,9 @@
 
 kernel void fit(global real *img, global real *sigma,
 				global real *X, global real *Y,
-				global real *x0, global int *wa, 
-				global real *output, int w, 
-				global int *roi_num)
+				global real *x0, global int *wa,
+				global real *output, int w,
+				global int *roi_num, int CU_count)
 	/* FIT
 
 	Parameters
@@ -43,6 +43,8 @@ kernel void fit(global real *img, global real *sigma,
 	int ROI_NUM = roi_num[1];
 	int groupCount = gng(0) * gng(1);
 
+	//int CU_count = 12;
+
 #pragma region Test
 #if 0
 	if (index == 0)
@@ -50,7 +52,7 @@ kernel void fit(global real *img, global real *sigma,
 	return;
 #endif
 #pragma endregion
-	
+
 	// ======================================================
 	// > declarations
 	// >> private variables
@@ -69,42 +71,49 @@ kernel void fit(global real *img, global real *sigma,
 	real factor = 100.0;
 
 	// >> local variables < (M + 4M + 6N + N * M) * sizeof(real) Byte
-	local int inta[INTN];
-	local int ipvt[N];
-	local int nfev;
+	//    use double buffer
+#define K 2
+	local int inta[INTN * K];
+	local int ipvt[N * K];
+	local int nfev[K];
 
-	local real reala[REALN];
-	local real fjac[N * M];
-	local real fvec[M];
-	local real x[N];
-	local real diag[N];
-	local real qtf[N];
-	local real wa0[N];
-	local real wa1[N];
-	local real wa2[N];
-	local real wa3[N];
-	local real wa4[M];
+	local real reala[REALN * K];
+	local real fjac[N * M * K];
+	local real fvec[M * K];
+	local real x[N * K];
+	local real diag[N * K];
+	local real qtf[N * K];
+	local real wa0[N * K];
+	local real wa1[N * K];
+	local real wa2[N * K];
+	local real wa3[N * K];
+	local real wa4[M * K];
 
-	local fcndata p;
+	local fcndata p[K];
 
 	loc_bar;	/// S9150, double, GS64: 2 us
 
+	int flag = 0; 
 	// ======================================================
 	for (; groupID < ROI_NUM; groupID += groupCount) {
+
+		flag = groupID / CU_count % 2;
+
 		// > wrap fcn data
 #ifdef M_WORKERS_DIM_2
 		loc_i = gli(0);
 		loc_j = gli(1);
-		if (loc_j == 0) p.X[loc_i] = X[loc_i + ROI_L * groupID];
-		else if (loc_j == 1) p.Y[loc_i] = Y[loc_i + ROI_L * groupID];
+		if (loc_j == 0) p[flag].X[loc_i] = X[loc_i + ROI_L * groupID];
+		else if (loc_j == 1)
+			p[flag].Y[loc_i] = Y[loc_i + ROI_L * groupID];
 
 
 		loc_bar;
 
-		roi_i = p.X[loc_i] / dX;
-		roi_j = p.Y[loc_j] / dY;
-		p.y[index] = img[w * roi_i + roi_j];
-		p.sigma[index] = sigma[w * roi_i + roi_j];
+		roi_i = p[flag].X[loc_i] / dX;
+		roi_j = p[flag].Y[loc_j] / dY;
+		p[flag].y[index] = img[w * roi_i + roi_j];
+		p[flag].sigma[index] = sigma[w * roi_i + roi_j];
 #else
 	//! each work group must contain not less than ROI_L work items
 		if (index < ROI_L) {
@@ -133,9 +142,13 @@ kernel void fit(global real *img, global real *sigma,
 					/// S9150, double, GS11x11: 11~12 us
 		// ======================================================
 		// > call lmdif
-		lmdif(&p, x, fvec, ftol, xtol, gtol, maxfev, epsfcn,
-			  diag, mode, factor, &nfev, fjac, ldfjac, ipvt,
-			  qtf, wa1, wa2, wa3, wa4, inta, reala, wa0);
+		lmdif(&p, x + flag * N, fvec + flag * M, ftol, xtol, gtol,
+			  maxfev, epsfcn, diag + flag * N, mode, factor,
+			  nfev + flag, fjac + flag * N * M, ldfjac,
+			  ipvt + flag * N, qtf + flag * N, wa1 + flag * N,
+			  wa2 + flag * N, wa3 + flag * N, wa4 + flag * M,
+			  inta + flag * INTN, reala + flag * REALN,
+			  wa0 + flag * N);
 		//return;//##############################################
 		// ======================================================
 
@@ -154,7 +167,7 @@ kernel void fit(global real *img, global real *sigma,
 		if (index < N) x0[index + N * groupID] = x[index];
 		if (index == N) {
 			wa[0 + 2 * groupID] = inta[INFO];
-			wa[1 + 2 * groupID] = nfev;
+			wa[1 + 2 * groupID] = nfev[flag];
 			output[groupID] = reala[FNORM];
 		}
 

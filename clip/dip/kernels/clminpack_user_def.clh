@@ -5,7 +5,7 @@
 //#define USE_AMD
 
 /* define data type */
-//#define USE_FLOAT_64
+#define USE_FLOAT_32
 
 #ifdef USE_FLOAT_64
 #define real double
