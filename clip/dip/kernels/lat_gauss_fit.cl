@@ -142,7 +142,7 @@ kernel void fit(global real *img, global real *sigma,
 					/// S9150, double, GS11x11: 11~12 us
 		// ======================================================
 		// > call lmdif
-		lmdif(&p, x + flag * N, fvec + flag * M, ftol, xtol, gtol,
+		lmdif(p + flag, x + flag * N, fvec + flag * M, ftol, xtol, gtol,
 			  maxfev, epsfcn, diag + flag * N, mode, factor,
 			  nfev + flag, fjac + flag * N * M, ldfjac,
 			  ipvt + flag * N, qtf + flag * N, wa1 + flag * N,
