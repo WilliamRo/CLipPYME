@@ -72,7 +72,7 @@ kernel void fit(global real *img, global real *sigma,
 
 	// >> local variables < (M + 4M + 6N + N * M) * sizeof(real) Byte
 	//    use double buffer
-#define K 2
+#define K 1
 	local int inta[INTN * K];
 	local int ipvt[N * K];
 	local int nfev[K];
@@ -93,19 +93,23 @@ kernel void fit(global real *img, global real *sigma,
 
 	loc_bar;	/// S9150, double, GS64: 2 us
 
-	int flag = 0; 
+	int cursor, flag = 0;
 	// ======================================================
 	for (; groupID < ROI_NUM; groupID += groupCount) {
+		cursor = groupID;
+		//cursor = groupID;
 
-		flag = groupID / CU_count % 2;
+		//flag = groupID / CU_count % 2;
+		//flag = 0;
+		//if (index == 0) printf("#[%d] %d\n", groupID, flag);
 
 		// > wrap fcn data
 #ifdef M_WORKERS_DIM_2
 		loc_i = gli(0);
 		loc_j = gli(1);
-		if (loc_j == 0) p[flag].X[loc_i] = X[loc_i + ROI_L * groupID];
+		if (loc_j == 0) p[flag].X[loc_i] = X[loc_i + ROI_L * cursor];
 		else if (loc_j == 1)
-			p[flag].Y[loc_i] = Y[loc_i + ROI_L * groupID];
+			p[flag].Y[loc_i] = Y[loc_i + ROI_L * cursor];
 
 
 		loc_bar;
@@ -114,6 +118,7 @@ kernel void fit(global real *img, global real *sigma,
 		roi_j = p[flag].Y[loc_j] / dY;
 		p[flag].y[index] = img[w * roi_i + roi_j];
 		p[flag].sigma[index] = sigma[w * roi_i + roi_j];
+
 #else
 	//! each work group must contain not less than ROI_L work items
 		if (index < ROI_L) {
@@ -136,13 +141,13 @@ kernel void fit(global real *img, global real *sigma,
 		/// S9150, double, GS64: 12 us
 		/// S9150, double, GS11x11: 10~11 us
 		// > set x
-		if (index < N) x[index] = x0[index + N * groupID];
+		if (index < N) x[index] = x0[index + N * cursor];
 
 		loc_bar;	/// S9150, double, GS64: 13~14 us
 					/// S9150, double, GS11x11: 11~12 us
 		// ======================================================
 		// > call lmdif
-		lmdif(p + flag, x + flag * N, fvec + flag * M, ftol, xtol, gtol,
+		lmdif(&p[flag], x + flag * N, fvec + flag * M, ftol, xtol, gtol,
 			  maxfev, epsfcn, diag + flag * N, mode, factor,
 			  nfev + flag, fjac + flag * N * M, ldfjac,
 			  ipvt + flag * N, qtf + flag * N, wa1 + flag * N,
@@ -164,11 +169,11 @@ kernel void fit(global real *img, global real *sigma,
 
 		loc_bar;
 
-		if (index < N) x0[index + N * groupID] = x[index];
+		if (index < N) x0[index + N * cursor] = x[index];
 		if (index == N) {
-			wa[0 + 2 * groupID] = inta[INFO];
-			wa[1 + 2 * groupID] = nfev[flag];
-			output[groupID] = reala[FNORM];
+			wa[0 + 2 * cursor] = inta[INFO + flag * INTN];
+			wa[1 + 2 * cursor] = nfev[flag];
+			output[cursor] = reala[FNORM + flag * REALN];
 		}
 
 		loc_bar;
